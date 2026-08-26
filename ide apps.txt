@@ -1,0 +1,16 @@
+gue setiawan, tolong buatin saya blueprint untuk web apps crm untuk internal saja. [mckuadrat.md]
+nama app: mckuadrat
+color dan layout seperti gambar cuma ganti warna biru dengan dengan merah #520000
+backend dan frontent : supabase
+FUNGSI:
+1. Sistem login dan logout (untuk tim internal), sistem role, dan setting akun.
+2. Memanage Client dengan data : (id tim, nama, jabatan, id dan nama sekolah, Alamat, No Whatsapp, Email, Status, Last Activity), bisa import dan export data, tambah manual.
+3. Leads Pipeline (Suspect, Prospek, Deal, Confirm, Buyer, Cancel) dengan form tambah leads: id dan nama sekolah (dropdown), nama pic (isi otomatis), program, tanggal, estimasi/real harga)
+bisa digeser macam trelo.
+4. Calender event, task dan project (seperti google calender dan bisa integrasi dengan google calender)
+5. Buat dokumen surat (Surat Penawaran/Quatation, Surat Konfirmasi Event, Invoice dan Kuitansi)
+6. Project (Manage Project: Task, To Do, Done) - integrasi dengan leads dan client
+7. Live chat antar tim, bisa umum bisa individu, ada notif
+8. Notifikasi klo ada hal baru.
+9. Export atau download/scresnhoot data.
+10. Responsive mode (mobile dan dekstop)
