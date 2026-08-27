@@ -25,7 +25,7 @@ const ClientDashboard = () => {
 
   // Filter PICs for this school
   const schoolPics = useMemo(() => {
-    return clients.filter(c => c.school?.toLowerCase() === schoolName?.toLowerCase());
+    return clients.filter(c => (c.sekolah || c.school)?.toLowerCase() === schoolName?.toLowerCase());
   }, [clients, schoolName]);
 
   // Filter Leads for this school
@@ -251,10 +251,10 @@ const ClientDashboard = () => {
               ) : (
                 schoolPics.map((pic, i) => (
                   <div key={i} style={{ padding: '12px', border: '1px solid var(--border)', borderRadius: '12px' }}>
-                    <p style={{ fontWeight: 700, margin: 0, fontSize: '14px' }}>{pic.name}</p>
-                    <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '8px' }}>{pic.position}</p>
+                    <p style={{ fontWeight: 700, margin: 0, fontSize: '14px' }}>{pic.nama || pic.name}</p>
+                    <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '8px' }}>{pic.posisi || pic.position}</p>
                     <div style={{ display: 'flex', gap: '8px' }}>
-                      <a href={`tel:${pic.phone}`} style={{ padding: '4px', color: 'var(--primary)', backgroundColor: 'var(--primary-soft)', borderRadius: '6px' }}><Phone size={14} /></a>
+                      <a href={`tel:${pic.whatsapp || pic.phone}`} style={{ padding: '4px', color: 'var(--primary)', backgroundColor: 'var(--primary-soft)', borderRadius: '6px' }}><Phone size={14} /></a>
                       <a href={`mailto:${pic.email}`} style={{ padding: '4px', color: 'var(--primary)', backgroundColor: 'var(--primary-soft)', borderRadius: '6px' }}><Mail size={14} /></a>
                     </div>
                   </div>

@@ -2,16 +2,8 @@
 -- MCKUADRAT CRM (Compatible with RLS Enabled)
 
 -- =========================================================================
--- PATCH EXISTING TABLES & RENAME TO INDONESIAN
+-- PATCH EXISTING TABLES
 -- =========================================================================
-ALTER TABLE IF EXISTS clients RENAME COLUMN "salutation" TO "sapaan";
-ALTER TABLE IF EXISTS clients RENAME COLUMN "name" TO "nama";
-ALTER TABLE IF EXISTS clients RENAME COLUMN "nickname" TO "panggilan";
-ALTER TABLE IF EXISTS clients RENAME COLUMN "school" TO "sekolah";
-ALTER TABLE IF EXISTS clients RENAME COLUMN "schoolAddress" TO "alamat";
-ALTER TABLE IF EXISTS clients RENAME COLUMN "position" TO "posisi";
-ALTER TABLE IF EXISTS clients RENAME COLUMN "phone" TO "whatsapp";
-
 ALTER TABLE IF EXISTS clients ADD COLUMN IF NOT EXISTS "proses" TEXT DEFAULT 'SUSPECT';
 ALTER TABLE IF EXISTS clients ADD COLUMN IF NOT EXISTS "updatedBy" TEXT;
 

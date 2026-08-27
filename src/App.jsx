@@ -6,6 +6,7 @@ import { ChatProvider } from './context/ChatContext';
 import { AppDataProvider } from './context/AppDataContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { NotificationProvider } from './context/NotificationContext';
+import { BroadcastProvider } from './context/BroadcastContext';
 import './index.css';
 
 // Lazy Load Pages
@@ -16,6 +17,7 @@ const Calendar = lazy(() => import('./pages/Calendar/Calendar'));
 const Documents = lazy(() => import('./pages/Documents/Documents'));
 const Projects = lazy(() => import('./pages/Projects/Projects'));
 const Chat = lazy(() => import('./pages/Chat/Chat'));
+const Broadcast = lazy(() => import('./pages/Broadcast/Broadcast'));
 const SettingsView = lazy(() => import('./pages/Settings/Settings'));
 const DailyActivity = lazy(() => import('./pages/DailyActivity/DailyActivity'));
 const ClientDashboard = lazy(() => import('./pages/Clients/ClientDashboard'));
@@ -39,39 +41,42 @@ function App() {
     <AuthProvider>
       <NotificationProvider>
         <AppDataProvider>
-          <ChatProvider>
-            <Router>
-              <Suspense fallback={<PageLoader />}>
-                <Routes>
-                  {/* Public Route */}
-                  <Route path="/login" element={<Login />} />
-                  <Route path="/reset-password" element={<ResetPassword />} />
-                  
-                  {/* Protected Routes directly under Layout */}
-                  <Route path="/" element={
-                    <ProtectedRoute>
-                      <Layout />
-                    </ProtectedRoute>
-                  }>
-                    <Route index element={<Navigate to="/dashboard" replace />} />
-                    <Route path="dashboard" element={<Dashboard />} />
-                    <Route path="clients" element={<Clients />} />
+          <BroadcastProvider>
+            <ChatProvider>
+              <Router>
+                <Suspense fallback={<PageLoader />}>
+                  <Routes>
+                    {/* Public Route */}
+                    <Route path="/login" element={<Login />} />
+                    <Route path="/reset-password" element={<ResetPassword />} />
+                    
+                    {/* Protected Routes directly under Layout */}
+                    <Route path="/" element={
+                      <ProtectedRoute>
+                        <Layout />
+                      </ProtectedRoute>
+                    }>
+                      <Route index element={<Navigate to="/dashboard" replace />} />
+                      <Route path="dashboard" element={<Dashboard />} />
+                      <Route path="clients" element={<Clients />} />
+                      <Route path="proses-sapa" element={<Broadcast />} />
 
-                    <Route path="leads" element={<Leads />} />
-                    <Route path="calendar" element={<Calendar />} />
-                    <Route path="documents" element={<Documents />} />
-                    <Route path="projects" element={<Projects />} />
-                    <Route path="chat" element={<Chat />} />
-                    <Route path="settings" element={<SettingsView />} />
-                    <Route path="activity" element={<DailyActivity />} />
-                    {/* New Feature Routes */}
-                    <Route path="clients/dashboard/:schoolName" element={<ClientDashboard />} />
-                    <Route path="reports/event" element={<ReviewReport />} />
-                  </Route>
-                </Routes>
-              </Suspense>
-            </Router>
-          </ChatProvider>
+                      <Route path="leads" element={<Leads />} />
+                      <Route path="calendar" element={<Calendar />} />
+                      <Route path="documents" element={<Documents />} />
+                      <Route path="projects" element={<Projects />} />
+                      <Route path="chat" element={<Chat />} />
+                      <Route path="settings" element={<SettingsView />} />
+                      <Route path="activity" element={<DailyActivity />} />
+                      {/* New Feature Routes */}
+                      <Route path="clients/dashboard/:schoolName" element={<ClientDashboard />} />
+                      <Route path="reports/event" element={<ReviewReport />} />
+                    </Route>
+                  </Routes>
+                </Suspense>
+              </Router>
+            </ChatProvider>
+          </BroadcastProvider>
         </AppDataProvider>
       </NotificationProvider>
     </AuthProvider>

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, UserPlus, Calendar, FileText, Briefcase, MessageSquare, Bell, Settings, Search, ChevronDown, User, Lock, LogOut, X, Target, History as HistoryIcon, ClipboardCheck } from 'lucide-react';
+import { LayoutDashboard, Users, UserPlus, Calendar, FileText, Briefcase, MessageSquare, Bell, Settings, Search, ChevronDown, User, Lock, LogOut, X, Target, History as HistoryIcon, ClipboardCheck, Radio, Sparkles } from 'lucide-react';
 import FloatingChat from './FloatingChat';
 import NotificationCenter from './NotificationCenter';
 import { useAuth } from '../../context/AuthContext';
@@ -15,6 +15,7 @@ const Sidebar = ({ isOpen, onClose, isMobile }) => {
   const menuItems = [
     { name: 'Dashboard', icon: <LayoutDashboard size={22} />, path: '/dashboard' },
     { name: 'Client', icon: <Users size={22} />, path: '/clients' },
+    { name: 'Proses Sapa', icon: <Sparkles size={22} />, path: '/proses-sapa' },
     { name: 'Leads', icon: <UserPlus size={22} />, path: '/leads' },
     { name: 'Calendar', icon: <Calendar size={22} />, path: '/calendar' },
     { name: 'Documents', icon: <FileText size={22} />, path: '/documents' },

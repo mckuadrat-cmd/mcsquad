@@ -527,7 +527,11 @@ const DailyActivity = () => {
                       style={{ width: '100%', backgroundColor: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px 18px', fontSize: '15px' }}
                     >
                       <option value="">-- Pilih PIC --</option>
-                      {picsForSelectedSchool.map(p => <option key={p.id} value={p.id}>{p.salutation} {p.nickname}</option>)}
+                      {picsForSelectedSchool.map(p => {
+                        const displayName = p.panggilan || p.nickname || p.nama || p.name || 'PIC';
+                        const displaySalutation = p.sapaan || p.salutation || '';
+                        return <option key={p.id} value={p.id}>{displaySalutation} {displayName}</option>;
+                      })}
                     </select>
                   </div>
                 )}

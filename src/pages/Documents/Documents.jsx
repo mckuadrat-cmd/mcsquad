@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Search, Filter, FileText, Download, Eye, Printer, X, FileSignature, Settings, FileCheck, Landmark, Receipt, FileStack, Calendar as CalIcon, Save, ChevronDown, Trash2, Edit2, Undo, RotateCcw, Info } from 'lucide-react';
+import { Plus, Search, Filter, FileText, Download, Eye, Printer, X, FileSignature, Settings, FileCheck, Landmark, Receipt, FileStack, Calendar as CalIcon, Save, ChevronDown, Trash2, Edit2, Undo, RotateCcw, Info, Send } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import ReactQuill from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';
@@ -7,7 +7,8 @@ import { supabase, parseDates, invokeApi } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { useAppData } from '../../context/AppDataContext';
 import { logActivity } from '../../utils/activityLogger';
-import { updateClientActivity } from '../../utils/clientUtils';
+import { updateClientActivity, updateClientStatusAndProses } from '../../utils/clientUtils';
+import { generateWaMeLink } from '../../utils/whatsappUtils';
 import { useNotification } from '../../context/NotificationContext';
 
 const Documents = () => {
@@ -516,6 +517,13 @@ const Documents = () => {
           });
         }
 
+        // Auto sync Client Status & Proses
+        const upperProses = targetStatus.toUpperCase();
+        let upperStatus = 'COLD';
+        if (['PROSPEK'].includes(upperProses)) upperStatus = 'WARM';
+        if (['DEAL', 'CONFIRM', 'BUYER'].includes(upperProses)) upperStatus = 'HOT';
+        updateClientStatusAndProses(formData.client, upperStatus, upperProses);
+
         // CALENDAR SYNC (SKK)
         if (formData.type === 'SKK' && formData.startDate) {
           const evId = `EVL-${targetLeadId}`;
@@ -633,8 +641,9 @@ const Documents = () => {
             }
           }
 
-          // Update Client Last Activity
+          // Update Client Last Activity & Status/Proses
           await updateClientActivity(schoolName, "SKK Confirmed - Deal");
+          await updateClientStatusAndProses(schoolName, 'HOT', targetStatus.toUpperCase());
 
           showAlert("Berhasil", `Data telah dikonfirmasi dan Lead dipindahkan ke ${targetStatus.toUpperCase()}.`, "success");
         } catch (err) {
@@ -954,6 +963,32 @@ const Documents = () => {
                         <Eye size={14} style={{ marginRight: '4px' }} /> Preview
                       </button>
 
+                      {(() => {
+                        const clientData = clients.find(c => (c.sekolah || c.school)?.toLowerCase().trim() === doc.client?.toLowerCase().trim());
+                        if (clientData) {
+                          const phoneNum = clientData.whatsapp || clientData.phone;
+                          if (phoneNum) {
+                            const salutationStr = clientData.sapaan || clientData.salutation || 'Bapak/Ibu';
+                            const clientNameStr = clientData.nama || clientData.name || '';
+                            const waMessage = `Halo ${salutationStr} ${clientNameStr} dari ${doc.client}, berikut kami kirimkan Dokumen ${doc.type} (${doc.title}) dengan Nomor Surat: ${doc.docNo}.`;
+                            const waLink = generateWaMeLink(phoneNum, waMessage);
+                            return (
+                              <a 
+                                href={waLink} 
+                                target="_blank" 
+                                rel="noreferrer" 
+                                className="btn btn-outline" 
+                                style={{ padding: '6px 10px', fontSize: '14px', color: '#25D366', borderColor: '#25D366', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                                title="Kirim Dokumen via WhatsApp"
+                              >
+                                <Send size={14} /> WA
+                              </a>
+                            );
+                          }
+                        }
+                        return null;
+                      })()}
+
                       {(doc.authorId === currentUser?.uid || !doc.authorId || userProfile?.role === 'owner') && (
                         <button onClick={() => handleEdit(doc)} className="btn btn-outline" style={{ padding: '6px 10px', fontSize: '14px', color: '#FFB020', borderColor: '#FFB020' }}>
                           <Edit2 size={14} style={{ marginRight: '4px' }} /> Edit
@@ -1026,7 +1061,7 @@ const Documents = () => {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
                 <div>
                   <h2 style={{ fontSize: '18px', fontWeight: 700, margin: 0 }}>Template Editor: {getDocTypeInfo(selectedTemplateType).label}</h2>
-                  <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>Ubah susunan teks, tabel, dan logo tanda tangan. Gunakan placeholder di sebelah kanan.</p>
+                  <p style={{ fontSize: '14px', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>Ubah susunan teks, tabel, dan logo tanda tangan. Gunakan placeholder di sebelah kanan.</p>
                 </div>
                 <div style={{ display: 'flex', gap: '10px' }}>
                   <button
@@ -1073,7 +1108,7 @@ const Documents = () => {
             <div className="card" style={{ width: isMobile ? '100%' : '280px', padding: '20px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
                 <h3 style={{ fontSize: '15px', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}><Info size={16} color="var(--primary)" /> Placeholder Variabel</h3>
-                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>Klik tombol di bawah untuk menyisipkan variabel dinamis pada kursor editor.</p>
+                <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>Klik tombol di bawah untuk menyisipkan variabel dinamis pada kursor editor.</p>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', overflowY: 'auto', maxHeight: '420px', paddingRight: '4px' }}>
@@ -1119,8 +1154,8 @@ const Documents = () => {
                     }}
                     className="hover:border-primary hover:bg-primary-soft"
                   >
-                    <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 500 }}>{p.label}</span>
-                    <strong style={{ fontSize: '13px', color: 'var(--primary)', fontFamily: 'monospace' }}>{p.tag}</strong>
+                    <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 500 }}>{p.label}</span>
+                    <strong style={{ fontSize: '14px', color: 'var(--primary)', fontFamily: 'monospace' }}>{p.tag}</strong>
                   </button>
                 ))}
               </div>
@@ -1161,7 +1196,10 @@ const Documents = () => {
                         required
                       >
                         <option value="">-- Pilih Sekolah --</option>
-                        {clients.map(c => <option key={c.id} value={c.school}>{c.school}</option>)}
+                        {clients.map(c => {
+                          const schoolNameVal = c.sekolah || c.school;
+                          return <option key={c.id} value={schoolNameVal}>{schoolNameVal}</option>;
+                        })}
                       </select>
                     </div>
 
@@ -1303,19 +1341,20 @@ const Documents = () => {
                           onChange={(e) => {
                             const selectedPic = e.target.value;
                             const clientData = clients.find(c =>
-                              c.school.toLowerCase().trim() === formData.client.toLowerCase().trim() &&
-                              c.name === selectedPic
+                              (c.sekolah || c.school).toLowerCase().trim() === formData.client.toLowerCase().trim() &&
+                              (c.nama || c.name) === selectedPic
                             );
-                            setFormData({ ...formData, penyelenggara: selectedPic, jabatan: clientData?.position || '' });
+                            setFormData({ ...formData, penyelenggara: selectedPic, jabatan: clientData?.posisi || clientData?.position || '' });
                           }}
                           disabled={!formData.client}
                           style={{ backgroundColor: 'var(--bg)', padding: '12px', borderRadius: '10px', border: '1px solid var(--border)', cursor: 'pointer' }}
                           required
                         >
                           <option value="">-- Pilih PIC --</option>
-                          {clients.filter(c => c.school.toLowerCase().trim() === formData.client.toLowerCase().trim()).map((c, i) => (
-                            <option key={i} value={c.name}>{c.name}</option>
-                          ))}
+                          {clients.filter(c => (c.sekolah || c.school).toLowerCase().trim() === formData.client.toLowerCase().trim()).map((c, i) => {
+                            const picName = c.nama || c.name;
+                            return <option key={i} value={picName}>{picName}</option>;
+                          })}
                         </select>
                       </div>
                       <div style={{ flex: 1 }}>
@@ -1579,7 +1618,7 @@ const Documents = () => {
                         required
                       >
                         <option value="">-- Pilih Client --</option>
-                        {Array.from(new Set(clients.map(c => c.school))).map((s, i) => <option key={i} value={s}>{s}</option>)}
+                        {Array.from(new Set(clients.map(c => c.sekolah || c.school).filter(Boolean))).map((s, i) => <option key={i} value={s}>{s}</option>)}
                       </select>
                     </div>
                     <div>
@@ -1929,7 +1968,7 @@ const DocumentRenderer = ({ doc, businessData, templates = {} }) => {
                   {businessData?.capUrl && <img src={businessData.capUrl} alt="Cap" style={{ maxHeight: '95px', position: 'absolute', zIndex: 1, opacity: 0.8, right: '20px' }} />}
                 </div>
                 <p style={{ margin: 0, fontWeight: 'bold', textDecoration: 'underline' }}>{businessData?.direkturName || 'Anrio Marfizal, S.Psi'}</p>
-                <p style={{ margin: 0, fontSize: '13px' }}>Direktur mckuadrat</p>
+                <p style={{ margin: 0, fontSize: '14px' }}>Direktur mckuadrat</p>
               </div>
               <div style={{ clear: 'both' }}></div>
             </>
@@ -1951,7 +1990,7 @@ const DocumentRenderer = ({ doc, businessData, templates = {} }) => {
 
               <p style={{ margin: '0 0 15px 0' }}>Dengan hormat, berdasarkan kesepakatan pelaksanaan kegiatan, berikut ini kami akan menyampaikan informasi terkait penyelenggaraan kegiatan tersebut:</p>
 
-              <table style={{ width: '100%', borderCollapse: 'collapse', margin: '15px 0', fontSize: '13px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', margin: '15px 0', fontSize: '14px' }}>
                 <tbody>
                   <tr>
                     <td style={{ border: '1px solid #000', padding: '8px', fontWeight: 'bold', width: '25%' }}>Nama Program</td>
@@ -2035,13 +2074,13 @@ const DocumentRenderer = ({ doc, businessData, templates = {} }) => {
                     {businessData?.capUrl && <img src={businessData.capUrl} alt="Cap" style={{ maxHeight: '90px', position: 'absolute', zIndex: 1, opacity: 0.8, right: '10px' }} />}
                   </div>
                   <p style={{ margin: 0, fontWeight: 'bold', textDecoration: 'underline' }}>{businessData?.direkturName || 'Anrio Marfizal, S.Psi'}</p>
-                  <p style={{ margin: 0, fontSize: '13px' }}>Direktur mckuadrat</p>
+                  <p style={{ margin: 0, fontSize: '14px' }}>Direktur mckuadrat</p>
                 </div>
                 <div style={{ textAlign: 'center', width: '220px' }}>
                   <p style={{ margin: 0 }}>Menyetujui Penyelenggara</p>
                   <div style={{ height: '95px' }}></div>
                   <p style={{ margin: 0, fontWeight: 'bold', textDecoration: 'underline' }}>{d.penyelenggara || '( ................................... )'}</p>
-                  <p style={{ margin: 0, fontSize: '13px' }}>{d.jabatan || 'Kepala Sekolah'}</p>
+                  <p style={{ margin: 0, fontSize: '14px' }}>{d.jabatan || 'Kepala Sekolah'}</p>
                 </div>
               </div>
             </>
@@ -2092,7 +2131,7 @@ const DocumentRenderer = ({ doc, businessData, templates = {} }) => {
 
               <p style={{ margin: '0 0 15px 0' }}>Terbilang : <strong>#{terbilang(doc.rawValue)} Rupiah#</strong></p>
               
-              <p style={{ margin: '0 0 25px 0', fontSize: '13px' }}>
+              <p style={{ margin: '0 0 25px 0', fontSize: '14px' }}>
                 Pembayaran ditransfer melalui <strong>
                   {businessData?.bankAccounts && businessData.bankAccounts.length > 0 
                     ? `${businessData.bankAccounts[0].bankName} Rek. ${businessData.bankAccounts[0].accountNo} a.n. ${businessData.bankAccounts[0].accountName}`
@@ -2108,7 +2147,7 @@ const DocumentRenderer = ({ doc, businessData, templates = {} }) => {
                   {businessData?.capUrl && <img src={businessData.capUrl} alt="Cap" style={{ maxHeight: '95px', position: 'absolute', zIndex: 1, opacity: 0.8, right: '20px' }} />}
                 </div>
                 <p style={{ margin: 0, fontWeight: 'bold', textDecoration: 'underline' }}>{businessData?.direkturName || 'Anrio Marfizal, S.Psi'}</p>
-                <p style={{ margin: 0, fontSize: '13px' }}>Direktur mckuadrat</p>
+                <p style={{ margin: 0, fontSize: '14px' }}>Direktur mckuadrat</p>
               </div>
               <div style={{ clear: 'both' }}></div>
             </>
@@ -2156,8 +2195,8 @@ const DocumentRenderer = ({ doc, businessData, templates = {} }) => {
                   </div>
                   
                   <div style={{ textAlign: 'center', width: '240px' }}>
-                    <p style={{ margin: 0, fontSize: '13px' }}>Tangerang Selatan, {formatIndonesianDate(doc.date)}</p>
-                    <p style={{ margin: '3px 0 0 0', fontWeight: 'bold', fontSize: '13px' }}>Finance</p>
+                    <p style={{ margin: 0, fontSize: '14px' }}>Tangerang Selatan, {formatIndonesianDate(doc.date)}</p>
+                    <p style={{ margin: '3px 0 0 0', fontWeight: 'bold', fontSize: '14px' }}>Finance</p>
                     <div style={{ height: '75px', position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center', margin: '5px 0' }}>
                       {businessData?.financeTtdUrl && <img src={businessData.financeTtdUrl} alt="TTD Finance" style={{ maxHeight: '65px', zIndex: 10 }} />}
                       {businessData?.capUrl && <img src={businessData.capUrl} alt="Cap" style={{ maxHeight: '85px', position: 'absolute', zIndex: 1, opacity: 0.8, right: '10px' }} />}

@@ -239,8 +239,8 @@ export const AppDataProvider = ({ children }) => {
         const existing = map.get(c.schoolId);
         map.set(c.schoolId, { 
           id: c.schoolId, 
-          name: c.school, 
-          address: c.schoolAddress || existing?.address || '',
+          name: c.sekolah || c.school, 
+          address: c.alamat || c.schoolAddress || existing?.address || '',
           picCount: (existing?.picCount || 0) + 1,
           hasClient: true,
           lastActivityTS: c.updatedAt || c.createdAt || null,

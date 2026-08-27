@@ -156,7 +156,7 @@ const FloatingChat = () => {
             </div>
 
             {activeRoom.id === 'general' && (
-              <span style={{ fontSize: '11px', fontWeight: 600, color: '#2ED47A', backgroundColor: '#E5F6EB', padding: '2px 8px', borderRadius: '10px' }}>
+              <span style={{ fontSize: '12px', fontWeight: 600, color: '#2ED47A', backgroundColor: '#E5F6EB', padding: '2px 8px', borderRadius: '10px' }}>
                 {onlineUsers.length} Online
               </span>
             )}
@@ -370,7 +370,7 @@ const FloatingChat = () => {
                 backgroundColor: '#FF4D4F',
                 color: 'white',
                 borderRadius: '50%',
-                fontSize: '11px',
+                fontSize: '12px',
                 fontWeight: 700,
                 display: 'flex',
                 alignItems: 'center',

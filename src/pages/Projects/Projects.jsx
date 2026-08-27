@@ -297,7 +297,7 @@ const Projects = () => {
                   </h3>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
                     <Building2 size={13} style={{ color: 'var(--text-secondary)' }} />
-                    <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }} className="text-truncate">
+                    <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-secondary)' }} className="text-truncate">
                       {proj.schoolName || 'Internal Project'}
                     </span>
                   </div>
@@ -307,7 +307,7 @@ const Projects = () => {
                   <div style={{
                     display: 'flex', alignItems: 'center', gap: '6px',
                     backgroundColor: statStyle.bg, color: statStyle.color,
-                    padding: '4px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: 700,
+                    padding: '4px 10px', borderRadius: '20px', fontSize: '13px', fontWeight: 700,
                     whiteSpace: 'nowrap'
                   }}>
                     {statStyle.icon}
@@ -367,7 +367,7 @@ const Projects = () => {
                     <div style={{
                       padding: '2px 10px', backgroundColor: 'var(--primary-soft)',
                       color: 'var(--primary)', borderRadius: '12px',
-                      fontSize: '12px', fontWeight: 600,
+                      fontSize: '13px', fontWeight: 600,
                       maxWidth: '80px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
                     }} title={proj.creatorName || 'Account'}>
                       {proj.creatorName || 'Account'}

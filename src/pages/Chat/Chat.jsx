@@ -193,7 +193,7 @@ const Chat = () => {
                   <div key={u.id} style={{ 
                     width: '32px', height: '32px', borderRadius: '50%', border: '2px solid white', 
                     marginLeft: i === 0 ? 0 : '-12px', overflow: 'hidden', backgroundColor: 'var(--primary-soft)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 600, color: 'var(--primary)'
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 600, color: 'var(--primary)'
                   }}>
                     {u.photo_url ? <img src={u.photo_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : u.name.charAt(0)}
                   </div>
@@ -202,7 +202,7 @@ const Chat = () => {
                   <div style={{ 
                     width: '32px', height: '32px', borderRadius: '50%', border: '2px solid white', 
                     marginLeft: '-12px', backgroundColor: '#F0F2F5', color: 'var(--text-secondary)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 600
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 600
                   }}>
                     +{onlineUsers.length - 3}
                   </div>
@@ -235,7 +235,7 @@ const Chat = () => {
                 {showDate && msg.timestamp && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '16px', margin: '12px 0' }}>
                     <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--border)', opacity: 0.5 }}></div>
-                    <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', backgroundColor: '#F0F2F5', padding: '4px 12px', borderRadius: '12px' }}>
+                    <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', backgroundColor: '#F0F2F5', padding: '4px 12px', borderRadius: '12px' }}>
                       {formatDateSeparator(msg.timestamp)}
                     </span>
                     <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--border)', opacity: 0.5 }}></div>

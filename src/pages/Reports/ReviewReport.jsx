@@ -290,16 +290,16 @@ const ReviewReport = () => {
               }}>
                 <div style={{ display: 'flex', gap: '12px' }}>
                   <div style={{ flex: 1 }}>
-                    {isMobile && <label style={{ fontSize: '12px', fontWeight: 700, marginBottom: '4px', display: 'block' }}>MULAI</label>}
+                    {isMobile && <label style={{ fontSize: '13px', fontWeight: 700, marginBottom: '4px', display: 'block' }}>MULAI</label>}
                     <input type="time" value={row.start} onChange={(e) => updateRundown(i, 'start', e.target.value)} className="input" style={{ padding: '10px' }} />
                   </div>
                   <div style={{ flex: 1 }}>
-                    {isMobile && <label style={{ fontSize: '12px', fontWeight: 700, marginBottom: '4px', display: 'block' }}>SELESAI</label>}
+                    {isMobile && <label style={{ fontSize: '13px', fontWeight: 700, marginBottom: '4px', display: 'block' }}>SELESAI</label>}
                     <input type="time" value={row.end} onChange={(e) => updateRundown(i, 'end', e.target.value)} className="input" style={{ padding: '10px' }} />
                   </div>
                 </div>
                 <div>
-                  {isMobile && <label style={{ fontSize: '12px', fontWeight: 700, marginBottom: '4px', display: 'block' }}>AKTIVITAS</label>}
+                  {isMobile && <label style={{ fontSize: '13px', fontWeight: 700, marginBottom: '4px', display: 'block' }}>AKTIVITAS</label>}
                   <input type="text" value={row.activity} onChange={(e) => updateRundown(i, 'activity', e.target.value)} placeholder="e.g. Pembukaan & Ice Breaking" className="input" style={{ padding: '10px' }} />
                 </div>
                 <button

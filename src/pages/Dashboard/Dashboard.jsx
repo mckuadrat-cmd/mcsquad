@@ -569,8 +569,8 @@ const Dashboard = () => {
                       <Building size={16} color="var(--primary)" />
                     </div>
                     <div>
-                      <p style={{ margin: 0, fontWeight: 600, fontSize: '14px', color: 'var(--text-primary)' }}>{c.school || c.name}</p>
-                      <p style={{ margin: '2px 0 0', fontSize: '14px', color: 'var(--text-secondary)' }}>Position: {c.position}</p>
+                      <p style={{ margin: 0, fontWeight: 600, fontSize: '14px', color: 'var(--text-primary)' }}>{c.sekolah || c.school || c.nama || c.name}</p>
+                      <p style={{ margin: '2px 0 0', fontSize: '14px', color: 'var(--text-secondary)' }}>Posisi: {c.posisi || c.position}</p>
                     </div>
                   </div>
                   <div style={{ fontWeight: 600, fontSize: '14px', color: '#2ED47A' }}>{c.status}</div>

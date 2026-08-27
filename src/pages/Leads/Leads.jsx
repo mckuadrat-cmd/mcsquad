@@ -8,7 +8,7 @@ import { useAppData } from '../../context/AppDataContext';
 import { useAuth } from '../../context/AuthContext';
 import { useNotification } from '../../context/NotificationContext';
 import { logActivity } from '../../utils/activityLogger';
-import { updateClientActivity } from '../../utils/clientUtils';
+import { updateClientActivity, updateClientStatusAndProses } from '../../utils/clientUtils';
 import { sendNotificationByName } from '../../utils/notificationUtils';
 
 const Leads = () => {
@@ -54,20 +54,26 @@ const Leads = () => {
       // If payment is scheduled for this month, move to deal automatically
       if (item.paymentDate && item.paymentDate.startsWith(currentYearMonth)) {
         try {
-          await updateDoc(doc(db, 'leads', item.id), {
-            status: 'deal',
-            isRealPrice: true,
-            updatedAt: serverTimestamp()
+          await invokeApi(`/leads?id=eq.${item.id}`, {
+            method: 'PUT',
+            body: {
+              status: 'deal',
+              isRealPrice: true,
+              updatedAt: new Date().toISOString()
+            }
           });
 
           if (item.calendarEventId) {
-            await setDoc(doc(db, 'calendar_events', item.calendarEventId), {
-              backgroundColor: '#E5EFFF',
-              borderColor: '#4680FF',
-              textColor: '#4680FF',
-              'extendedProps.isEstimasi': false,
-              updatedAt: serverTimestamp()
-            }, { merge: true });
+            await invokeApi(`/calendar_events?id=eq.${item.calendarEventId}`, {
+              method: 'PATCH',
+              body: {
+                backgroundColor: '#E5EFFF',
+                borderColor: '#4680FF',
+                textColor: '#4680FF',
+                extendedProps: { ...(item.extendedProps || {}), isEstimasi: false },
+                updatedAt: new Date().toISOString()
+              }
+            });
           }
         } catch (err) {
           console.error("Auto-move error:", err);
@@ -140,7 +146,7 @@ const Leads = () => {
 
   const schoolPics = useMemo(() => {
     if (!newLead.schoolName) return [];
-    return clients.filter(c => c.school.toLowerCase() === newLead.schoolName.toLowerCase());
+    return clients.filter(c => (c.sekolah || c.school).toLowerCase() === newLead.schoolName.toLowerCase());
   }, [clients, newLead.schoolName]);
 
   const isNewSchool = useMemo(() => {
@@ -232,11 +238,21 @@ const Leads = () => {
 
       await invokeApi(`/leads?id=eq.${draggableId}`, { method: 'PUT', body: updateData });
 
-      // --- SYNC CALENDAR EVENT COLOR ---
-      // 1. Get current lead
+      // --- SYNC CLIENT STATUS & PROSES AUTOMATICALLY ---
       const allLeadItems = Object.values(leads).flatMap(col => col.items);
       const lead = allLeadItems.find(l => l.id === draggableId);
 
+      if (lead && lead.schoolName) {
+        const targetProses = destination.droppableId.toUpperCase();
+        let targetStatus = null;
+        if (['PROSPEK'].includes(targetProses)) targetStatus = 'WARM';
+        if (['DEAL', 'CONFIRM', 'BUYER'].includes(targetProses)) targetStatus = 'HOT';
+        // Note: For CANCEL, targetStatus remains null so the client retains status and cools down naturally over time (14d/45d)
+
+        updateClientStatusAndProses(lead.schoolName, targetStatus, targetProses);
+      }
+
+      // --- SYNC CALENDAR EVENT COLOR ---
       if (lead && lead.calendarEventId) {
         if (destination.droppableId === 'cancel') {
           // Delete from calendar if moved to cancel
@@ -434,12 +450,12 @@ const Leads = () => {
         body: {
           id: clientId,
           schoolId: finalSchoolId,
-          school: newLead.schoolName.trim(),
-          name: newLead.newPicName.trim(),
-          salutation: newLead.newPicSalutation,
-          nickname: '',
-          position: '',
-          phone: '',
+          sekolah: newLead.schoolName.trim(),
+          nama: newLead.newPicName.trim(),
+          sapaan: newLead.newPicSalutation,
+          panggilan: '',
+          posisi: '',
+          whatsapp: '',
           email: '',
           status: 'Active',
           notes: 'Dibuat otomatis dari Leads',
@@ -718,21 +734,21 @@ const Leads = () => {
                                   {/* Hover Detail Part */}
                                   <div className="lead-card-detail">
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', gap: '8px' }}>
-                                      <span className="text-truncate" style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', flex: 1 }} title={item.program || item.programName}>
+                                      <span className="text-truncate" style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', flex: 1 }} title={item.program || item.programName}>
                                         {item.program || item.programName || 'No Program'}
                                       </span>
-                                      <span style={{ fontSize: '11px', color: 'var(--text-secondary)', flexShrink: 0 }}>
+                                      <span style={{ fontSize: '12px', color: 'var(--text-secondary)', flexShrink: 0 }}>
                                         {item.date || '-'}
                                       </span>
                                     </div>
 
                                     {item.docRef && (
-                                      <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '8px' }} className="text-truncate">
+                                      <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '8px' }} className="text-truncate">
                                         Ref: {item.docRef}
                                       </p>
                                     )}
 
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-secondary)', fontSize: '12px', marginBottom: '12px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '12px' }}>
                                       <div style={{ width: '18px', height: '18px', backgroundColor: '#E5EFFF', color: '#4680FF', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '10px' }}>
                                         {item.pic?.charAt(0).toUpperCase() || '?'}
                                       </div>
@@ -904,10 +920,12 @@ const Leads = () => {
                       >
                         <option value="">-- Pilih PIC Sekolah --</option>
                         {schoolPics.map((pic, idx) => {
-                          const displayName = pic.nickname ? pic.nickname : pic.name;
+                          const displayName = pic.panggilan || pic.nickname || pic.nama || pic.name || 'Unknown';
+                          const actualName = pic.nama || pic.name || 'Unknown';
+                          const actualSalutation = pic.sapaan || pic.salutation || '';
                           return (
-                            <option key={idx} value={pic.name}>
-                              {pic.salutation} {displayName}
+                            <option key={idx} value={actualName}>
+                              {actualSalutation} {displayName}
                             </option>
                           );
                         })}

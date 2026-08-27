@@ -6,7 +6,7 @@ import { useNotification } from '../../context/NotificationContext';
 
 const Settings = () => {
   const { currentUser, userProfile, setUserProfile, userRole } = useAuth();
-  const { showAlert, showConfirm } = useNotification();
+  const { showAlert, showConfirm, showToast } = useNotification();
   const [activeTab, setActiveTab] = useState(() => {
     return localStorage.getItem('settingsTab') || 'profile';
   });
@@ -16,7 +16,6 @@ const Settings = () => {
   }, [activeTab]);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [statusMsg, setStatusMsg] = useState({ text: '', type: '' });
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
   useEffect(() => {
@@ -122,16 +121,13 @@ const Settings = () => {
   ];
 
   const triggerStatus = (msg, type = 'success') => {
-    const title = type === 'error' ? 'Gagal' : type === 'info' ? 'Sedang Memproses' : 'Berhasil';
-    const alertType = type === 'error' ? 'error' : type === 'info' ? 'info' : 'success';
-    showAlert(title, msg, alertType);
-  };
-
-  const showToast = (text, type = 'success') => {
-    setStatusMsg({ text, type });
-    setTimeout(() => {
-      setStatusMsg({ text: '', type: '' });
-    }, 4000);
+    if (type === 'error' || type === 'warning') {
+      const title = type === 'error' ? 'Gagal' : 'Peringatan';
+      const alertType = type === 'error' ? 'error' : 'warning';
+      showAlert(title, msg, alertType);
+    } else {
+      showToast(msg, type);
+    }
   };
 
   const handlePhotoUpload = async (e) => {
@@ -139,12 +135,12 @@ const Settings = () => {
     if (!file || !currentUser) return;
 
     if (file.size > 2 * 1024 * 1024) {
-      showToast('File terlalu besar! Maksimal 2MB.', 'error');
+      triggerStatus('File terlalu besar! Maksimal 2MB.', 'error');
       return;
     }
 
     setUploading(true);
-    showToast('Sedang mengunggah foto profil...', 'info');
+    triggerStatus('Sedang mengunggah foto profil...', 'info');
 
     try {
       const fileExt = file.name.split('.').pop();
@@ -161,10 +157,10 @@ const Settings = () => {
         .getPublicUrl(fileName);
 
       setProfileData(prev => ({ ...prev, photo_url: publicUrl }));
-      showToast('Foto profil terunggah! Ingat untuk klik Update Profil di bawah untuk menyimpan.', 'success');
+      triggerStatus('Foto profil terunggah! Ingat untuk klik Update Profil di bawah untuk menyimpan.', 'success');
     } catch (err) {
       console.error("Storage Error:", err);
-      showToast(`Gagal upload: ${err.message}`, 'error');
+      triggerStatus(`Gagal upload: ${err.message}`, 'error');
     } finally {
       setUploading(false);
       e.target.value = null;
@@ -377,16 +373,7 @@ const Settings = () => {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative' }}>
 
-      {statusMsg.text && (
-        <div style={{
-          position: 'fixed', bottom: '24px', right: '24px', zIndex: 1000,
-          backgroundColor: statusMsg.type === 'error' ? '#FF5252' : statusMsg.type === 'info' ? 'var(--primary)' : '#2ED47A',
-          color: 'white', padding: '12px 24px', borderRadius: '8px',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontWeight: 600
-        }}>
-          {statusMsg.text}
-        </div>
-      )}
+
 
       <div style={{ marginBottom: isMobile ? '16px' : '24px' }}>
         <h1 style={{ fontSize: isMobile ? '24px' : '30px', fontWeight: 700, margin: '0 0 4px' }}>System Settings</h1>
@@ -749,7 +736,7 @@ const Settings = () => {
                     placeholder="https://script.google.com/macros/s/.../exec"
                     style={{ width: '100%', padding: '12px 16px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: '#F8F9FB', outline: 'none' }}
                   />
-                  <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                  <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px' }}>
                     URL Web App yang diperoleh setelah mempublikasikan Apps Script Anda (pilih akses: "Anyone").
                   </p>
                 </div>
@@ -763,14 +750,14 @@ const Settings = () => {
                     placeholder="Contoh: 1aB_cDeFgHiJkLmNoPqRsTuVwXyZ"
                     style={{ width: '100%', padding: '12px 16px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: '#F8F9FB', outline: 'none' }}
                   />
-                  <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                  <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px' }}>
                     ID folder Google Drive tempat menyimpan hasil PDF yang di-generate. Dapat diambil dari akhir URL folder di browser.
                   </p>
                 </div>
 
                 <div style={{ borderTop: '1px dashed var(--border)', marginTop: '8px', paddingTop: '24px' }}>
                   <h3 style={{ fontSize: '15px', fontWeight: 600, marginBottom: '16px' }}>ID Template Google Docs (Master Templates)</h3>
-                  <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '16px' }}>
+                  <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '16px' }}>
                     Buka file template Anda di Google Docs, lalu salin ID unik yang ada di URL-nya (di antara `/d/` dan `/edit`).
                   </p>
 

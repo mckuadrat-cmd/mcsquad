@@ -180,7 +180,7 @@ const Calendar = () => {
         schoolName: formData.schoolName,
         schoolId: formData.schoolId
       },
-      updatedAt: serverTimestamp()
+      updatedAt: new Date().toISOString()
     };
 
     // If it's an existing lead event (type: event), we might want to preserve the lead's color sync 
@@ -534,18 +534,18 @@ const Calendar = () => {
                     className="hover:shadow-md"
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                       <span style={{ fontSize: '12px', fontWeight: 700, color: ev.type === 'task' ? '#FFBA08' : 'var(--primary)', textTransform: 'uppercase' }}>{ev.type || 'Event'}</span>
-                       <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{ev.startTime || '00:00'} - {ev.endTime || 'Selesai'}</span>
+                       <span style={{ fontSize: '13px', fontWeight: 700, color: ev.type === 'task' ? '#FFBA08' : 'var(--primary)', textTransform: 'uppercase' }}>{ev.type || 'Event'}</span>
+                       <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{ev.startTime || '00:00'} - {ev.endTime || 'Selesai'}</span>
                     </div>
                     <p style={{ margin: 0, fontWeight: 700, fontSize: '16px', color: 'var(--text-primary)' }}>{ev.title}</p>
                     <p style={{ margin: '4px 0 0', fontSize: '14px', color: 'var(--text-secondary)' }}>
                       <Building2 size={14} style={{ marginRight: '4px' }} /> {ev.schoolName || 'Internal'}
                     </p>
                     <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <div style={{ width: '24px', height: '24px', borderRadius: '50%', backgroundColor: 'var(--primary-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', color: 'var(--primary)', fontWeight: 700 }}>
+                      <div style={{ width: '24px', height: '24px', borderRadius: '50%', backgroundColor: 'var(--primary-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', color: 'var(--primary)', fontWeight: 700 }}>
                         {ev.pic?.charAt(0) || 'U'}
                       </div>
-                      <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>PIC: {ev.pic || 'System'}</span>
+                      <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>PIC: {ev.pic || 'System'}</span>
                     </div>
                   </div>
                 ))
@@ -709,7 +709,7 @@ const Calendar = () => {
                     disabled
                     style={{ backgroundColor: 'var(--border)', padding: '12px 16px', border: 'none', color: 'var(--text-secondary)', width: '100%', borderRadius: '12px', cursor: 'not-allowed' }} 
                   />
-                  <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>PIC otomatis diambil dari akun yang sedang login.</p>
+                  <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>PIC otomatis diambil dari akun yang sedang login.</p>
                 </div>
 
                 <div>
