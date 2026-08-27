@@ -1,0 +1,4 @@
+# Supabase project configuration
+
+[functions.wa-webhook]
+verify_jwt = false

@@ -512,6 +512,18 @@ const Clients = () => {
     }
   };
 
+  const handleAoChange = async (client, newAo) => {
+    try {
+      await invokeApi('/clients', {
+        method: 'PUT',
+        body: { id: client.id, ao: newAo }
+      });
+      showToast(`AO ${client.nama || client.name} diubah ke ${newAo || 'Kosong'}`, 'success');
+    } catch (err) {
+      showAlert('Gagal', 'Gagal merubah AO: ' + err.message, 'error');
+    }
+  };
+
   return (
     <div style={{ position: 'relative', height: '100%', paddingBottom: '20px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
@@ -662,11 +674,11 @@ const Clients = () => {
                   <th style={{ padding: '16px 20px', fontWeight: 600 }}>Nama Client</th>
                   <th style={{ padding: '16px 20px', fontWeight: 600 }}>Sekolah</th>
                   <th style={{ padding: '16px 20px', fontWeight: 600 }}>Kontak</th>
-                  <th style={{ padding: '16px 20px', fontWeight: 600 }}>AO</th>
                   <th style={{ padding: '16px 20px', fontWeight: 600 }}>Status</th>
                   <th style={{ padding: '16px 20px', fontWeight: 600 }}>Proses</th>
                   <th style={{ padding: '16px 20px', fontWeight: 600 }}>Status Sapa</th>
                   <th style={{ padding: '16px 20px', fontWeight: 600 }}>Aktivitas Terakhir</th>
+                  <th style={{ padding: '16px 20px', fontWeight: 600 }}>AO</th>
                   <th style={{ padding: '16px 20px', fontWeight: 600, textAlign: 'center' }}>Aksi</th>
                 </tr>
               </thead>
@@ -706,11 +718,6 @@ const Clients = () => {
                       <td style={{ padding: '16px 20px' }}>
                         <p style={{ margin: 0, fontSize: '14px' }}>{client.whatsapp || client.phone}</p>
                         <p style={{ margin: 0, fontSize: '14px', color: 'var(--text-secondary)' }}>{client.email}</p>
-                      </td>
-                      <td style={{ padding: '16px 20px' }}>
-                        <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: client.ao ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
-                          {client.ao || '-'}
-                        </p>
                       </td>
                       <td style={{ padding: '16px 20px' }}>
                         <select
@@ -786,8 +793,20 @@ const Clients = () => {
                         )}
                       </td>
 
-                      <td style={{ padding: '16px 20px' }}>
-                        <p style={{ margin: 0, fontSize: '14px', fontWeight: 500 }}>{client.lastActivityDesc || client.lastActivity || 'No Activity'}</p>
+                      <td style={{ padding: '16px 20px', maxWidth: '200px' }}>
+                        <p
+                          style={{
+                            margin: 0,
+                            fontSize: '14px',
+                            fontWeight: 500,
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis'
+                          }}
+                          title={client.lastActivityDesc || client.lastActivity || 'No Activity'}
+                        >
+                          {client.lastActivityDesc || client.lastActivity || 'No Activity'}
+                        </p>
                         <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-secondary)' }}>
                           {client.lastActivityAt
                             ? new Date(client.lastActivityAt).toLocaleDateString('id-ID')
@@ -795,6 +814,31 @@ const Clients = () => {
                               ? client.updatedAt.toDate().toLocaleDateString('id-ID')
                               : (client.updatedAt ? new Date(client.updatedAt).toLocaleDateString('id-ID') : '-'))}
                         </p>
+                      </td>
+                      <td style={{ padding: '16px 20px' }}>
+                        <select
+                          disabled={userRole === 'viewer'}
+                          value={client.ao || ''}
+                          onChange={(e) => handleAoChange(client, e.target.value)}
+                          style={{
+                            backgroundColor: 'var(--bg)',
+                            color: 'var(--text-primary)',
+                            border: '1px solid var(--border)',
+                            padding: '4px 10px',
+                            borderRadius: '12px',
+                            fontSize: '13px',
+                            fontWeight: 600,
+                            cursor: userRole === 'viewer' ? 'default' : 'pointer',
+                            outline: 'none',
+                            maxWidth: '120px'
+                          }}
+                        >
+                          <option value="">-</option>
+                          {users.map(u => {
+                            const uName = u.nickname?.trim() || u.name?.trim() || u.email;
+                            return <option key={u.id || uName} value={uName}>{uName}</option>;
+                          })}
+                        </select>
                       </td>
                       <td style={{ padding: '16px 20px', textAlign: 'center' }}>
 

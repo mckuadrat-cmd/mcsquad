@@ -235,7 +235,7 @@ export const BroadcastProvider = ({ children }) => {
         body: JSON.stringify({
           status: 'COLD',
           proses: 'SAPA',
-          lastActivityDesc: 'Proses Sapa diaktifkan (Tahap 1 dijadwalkan +15 Menit)',
+          lastActivityDesc: 'Proses Sapa Tahap 1',
           lastActivityAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
         })
