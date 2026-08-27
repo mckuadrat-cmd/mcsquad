@@ -132,7 +132,7 @@ const Leads = () => {
       schoolPic: lead.schoolPic || '',
       program: lead.program || '',
       date: lead.date || '',
-      price: lead.price || '',
+      price: formatRupiah(lead.price),
       pic: lead.pic || userName,
       picId: lead.picId || '',
       notes: lead.notes || '',
@@ -141,6 +141,13 @@ const Leads = () => {
       newPicName: ''
     });
     setIsDrawerOpen(true);
+  };
+
+  const parsePriceToNumeric = (val) => {
+    if (val === null || val === undefined || val === '') return 0;
+    if (typeof val === 'number') return val;
+    const digitsOnly = String(val).replace(/[^0-9]/g, '');
+    return parseInt(digitsOnly, 10) || 0;
   };
 
 
@@ -226,6 +233,10 @@ const Leads = () => {
         updatedAt: new Date().toISOString(),
         ...extraData
       };
+
+      if (updateData.price !== undefined) {
+        updateData.price = parsePriceToNumeric(updateData.price);
+      }
 
       // Auto Log Activity
       const stageName = destination.droppableId.charAt(0).toUpperCase() + destination.droppableId.slice(1);
@@ -394,7 +405,7 @@ const Leads = () => {
           schoolName: newLead.schoolName,
           schoolPic: finalSchoolPic,
           program: newLead.program,
-          price: newLead.price,
+          price: parsePriceToNumeric(newLead.price),
           pic: newLead.pic,
           picId: newLead.picId || currentUser?.uid,
           date: newLead.date || 'TBD',
@@ -477,7 +488,7 @@ const Leads = () => {
       schoolName: newLead.schoolName,
       schoolPic: finalSchoolPic,
       program: newLead.program,
-      price: newLead.price,
+      price: parsePriceToNumeric(newLead.price),
       isRealPrice: false,
       pic: newLead.pic,
       picId: currentUser?.uid,
