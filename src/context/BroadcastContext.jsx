@@ -291,7 +291,7 @@ export const BroadcastProvider = ({ children }) => {
       await invokeApi(`/wa_client_drips?id=eq.${dripId}`, {
         method: 'PATCH',
         body: JSON.stringify({
-          status: 'stopped_replied',
+          status: 'stopped_manual',
           stop_reason: reason,
           updated_at: new Date().toISOString()
         })

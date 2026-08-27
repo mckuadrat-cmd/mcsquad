@@ -425,25 +425,46 @@ const Broadcast = () => {
                             })()}
                           </td>
                           <td style={{ padding: '12px' }}>
-                            <span
-                              title={cd.stop_reason || ''}
-                              style={{
-                                padding: '4px 10px', borderRadius: '12px', fontSize: '13px', fontWeight: 600,
-                                backgroundColor: cd.status === 'active' ? '#E5F6EB' : cd.status === 'stopped_replied' ? '#E5EFFF' : cd.status === 'paused' ? '#FFF4E5' : '#F4F5F7',
-                                color: cd.status === 'active' ? '#2ED47A' : cd.status === 'stopped_replied' ? '#4680FF' : cd.status === 'paused' ? '#FFB020' : '#6B7280',
-                                cursor: cd.stop_reason ? 'help' : 'default'
-                              }}
-                            >
-                              {cd.status === 'active' ? 'Aktif' :
-                                cd.status === 'stopped_replied' ? 'Ada Balasan' :
-                                  cd.status === 'paused' ? 'Ditangguhkan' :
-                                    cd.status === 'completed' ? 'Selesai' : cd.status}
-                            </span>
-                            {cd.stop_reason && cd.stop_reason !== 'Ada Balasan' && (
-                              <div style={{ fontSize: '11px', color: '#E65100', marginTop: '4px', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={cd.stop_reason}>
-                                ⚠️ {cd.stop_reason}
-                              </div>
-                            )}
+                            {(() => {
+                              let label = 'Aktif';
+                              let bg = '#E5F6EB';
+                              let color = '#2ED47A';
+
+                              if (cd.status === 'stopped_replied') {
+                                label = 'Ada Balasan';
+                                bg = '#E5EFFF';
+                                color = '#4680FF';
+                              } else if (cd.status === 'stopped_manual' || cd.status === 'stopped' || (cd.stop_reason && cd.stop_reason.toLowerCase().includes('manual'))) {
+                                label = 'Dihentikan';
+                                bg = '#FFE5E5';
+                                color = '#FF5252';
+                              } else if (cd.status === 'paused') {
+                                label = 'Ditangguhkan';
+                                bg = '#FFF4E5';
+                                color = '#FFB020';
+                              } else if (cd.status === 'completed') {
+                                label = 'Selesai';
+                                bg = '#F4F5F7';
+                                color = '#6B7280';
+                              }
+
+                              return (
+                                <span
+                                  title={cd.stop_reason || label}
+                                  style={{
+                                    padding: '4px 10px',
+                                    borderRadius: '12px',
+                                    fontSize: '13px',
+                                    fontWeight: 600,
+                                    backgroundColor: bg,
+                                    color: color,
+                                    display: 'inline-block'
+                                  }}
+                                >
+                                  {label}
+                                </span>
+                              );
+                            })()}
                           </td>
                           <td style={{ padding: '12px', display: 'flex', gap: '8px', justifyContent: 'center' }}>
                             <button
