@@ -13,7 +13,7 @@ import { invokeApi } from '../../lib/supabase';
 import { useNotification } from '../../context/NotificationContext';
 
 const Broadcast = () => {
-  const { clients } = useAppData();
+  const { clients, users = [] } = useAppData();
   const { userRole, currentUser } = useAuth();
   const isAdminOrOwner = userRole === 'owner' || userRole === 'admin';
   const { showToast, showAlert, showConfirm } = useNotification();
@@ -370,7 +370,7 @@ const Broadcast = () => {
                     title="Kirim semua pesan antrean Proses Sapa yang jatuh tempo sekarang"
                   >
                     <RefreshCw size={14} className={isDispatching ? "animate-spin" : ""} />
-                    {isDispatching ? 'Memproses...' : 'Kirim Antrean Sekarang'}
+                    {isDispatching ? 'Memproses...' : 'Proses Sekarang'}
                   </button>
                 )}
               </div>
@@ -418,10 +418,14 @@ const Broadcast = () => {
                             }
                           </td>
                           <td style={{ padding: '12px', fontSize: '13px', color: 'var(--text-secondary)' }}>
-                            {cd.created_by || 'System'}
+                            {(() => {
+                              if (!cd.created_by) return 'System';
+                              const match = users.find(u => u.email === cd.created_by);
+                              return match ? (match.nickname || match.name) : cd.created_by.split('@')[0];
+                            })()}
                           </td>
                           <td style={{ padding: '12px' }}>
-                            <span 
+                            <span
                               title={cd.stop_reason || ''}
                               style={{
                                 padding: '4px 10px', borderRadius: '12px', fontSize: '13px', fontWeight: 600,
@@ -430,10 +434,10 @@ const Broadcast = () => {
                                 cursor: cd.stop_reason ? 'help' : 'default'
                               }}
                             >
-                              {cd.status === 'active' ? 'Aktif' : 
-                               cd.status === 'stopped_replied' ? 'Ada Balasan' : 
-                               cd.status === 'paused' ? 'Ditangguhkan' : 
-                               cd.status === 'completed' ? 'Selesai' : cd.status}
+                              {cd.status === 'active' ? 'Aktif' :
+                                cd.status === 'stopped_replied' ? 'Ada Balasan' :
+                                  cd.status === 'paused' ? 'Ditangguhkan' :
+                                    cd.status === 'completed' ? 'Selesai' : cd.status}
                             </span>
                             {cd.stop_reason && (
                               <div style={{ fontSize: '11px', color: '#E65100', marginTop: '4px', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={cd.stop_reason}>
@@ -449,9 +453,9 @@ const Broadcast = () => {
                                 backgroundColor: 'white', color: 'var(--text-main)', fontSize: '13px',
                                 fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px'
                               }}
-                              title="Lihat Log Pesan Terkirim"
+                              title="Lihat Pesan Terkirim"
                             >
-                              <Eye size={13} /> Log
+                              <Eye size={13} />
                             </button>
 
                             {cd.status === 'active' && canManage && (
@@ -900,6 +904,27 @@ const Broadcast = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {isDispatching && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center', zIndex: 10000
+        }}>
+          <div style={{
+            backgroundColor: 'white', padding: '30px', borderRadius: '16px',
+            boxShadow: '0 8px 30px rgba(0,0,0,0.15)', display: 'flex', flexDirection: 'column',
+            alignItems: 'center', gap: '16px', maxWidth: '360px', textAlign: 'center',
+            color: 'var(--text-primary)', border: '1px solid var(--border)'
+          }}>
+            <RefreshCw size={40} className="animate-spin" style={{ color: 'var(--primary)' }} />
+            <h4 style={{ fontWeight: 700, margin: 0, fontSize: '16px' }}>Memproses Antrean</h4>
+            <p style={{ margin: 0, fontSize: '14px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+              Sedang memproses antrean pesan WhatsApp dan menyinkronkan status CRM. Mohon tunggu beberapa saat, jangan menutup halaman ini...
+            </p>
           </div>
         </div>
       )}

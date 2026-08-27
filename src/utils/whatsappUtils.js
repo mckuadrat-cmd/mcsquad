@@ -30,7 +30,8 @@ export const formatPhoneNumber = (phone) => {
 export const renderTemplateContent = (templateStr, client = {}, defaultSettings = {}) => {
   if (!templateStr) return '';
   const salutation = client.sapaan || client.salutation || defaultSettings.default_salutation || 'Bapak/Ibu';
-  const name = client.nama || client.name || client.panggilan || client.nickname || 'Bapak/Ibu';
+  const name = client.nama || client.name || 'Bapak/Ibu';
+  const nickname = client.panggilan || client.nickname || name;
   const school = client.sekolah || client.school || 'Sekolah';
   const position = client.posisi || client.position || 'Pengurus';
   const email = client.email || '';
@@ -40,6 +41,8 @@ export const renderTemplateContent = (templateStr, client = {}, defaultSettings 
     .replace(/\{\{\s*sapaan\s*\}\}/gi, salutation)
     .replace(/\{\{\s*name\s*\}\}/gi, name)
     .replace(/\{\{\s*nama\s*\}\}/gi, name)
+    .replace(/\{\{\s*nickname\s*\}\}/gi, nickname)
+    .replace(/\{\{\s*panggilan\s*\}\}/gi, nickname)
     .replace(/\{\{\s*school\s*\}\}/gi, school)
     .replace(/\{\{\s*sekolah\s*\}\}/gi, school)
     .replace(/\{\{\s*position\s*\}\}/gi, position)

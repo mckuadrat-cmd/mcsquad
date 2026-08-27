@@ -21,7 +21,9 @@ serve(async (req) => {
       const supabase = createClient(supabaseUrl, supabaseServiceKey);
       const { data: tpls } = await supabase.from('wa_templates').select('*');
       const { data: steps } = await supabase.from('wa_drip_steps').select('*');
-      return new Response(JSON.stringify({ tpls, steps }), {
+      const { data: drips } = await supabase.from('wa_client_drips').select('*');
+      const { data: items } = await supabase.from('wa_broadcast_items').select('*');
+      return new Response(JSON.stringify({ tpls, steps, drips, items }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200
       });
@@ -40,30 +42,41 @@ serve(async (req) => {
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 
-    // Verifikasi identitas pengguna menggunakan clientAuth resmi (CORS/Auth-safe)
-    const clientAuth = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } }
-    })
-    const { data: { user }, error: authError } = await clientAuth.auth.getUser()
+    let userRole = 'staff'
+    let user = null
+    const isServiceRole = token === supabaseServiceKey
 
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized: ' + (authError?.message || 'Invalid user') }), { 
-        status: 401, 
-        headers: corsHeaders 
+    if (isServiceRole) {
+      userRole = 'owner'
+    } else {
+      // Verifikasi identitas pengguna menggunakan clientAuth resmi (CORS/Auth-safe)
+      const clientAuth = createClient(supabaseUrl, supabaseAnonKey, {
+        global: { headers: { Authorization: authHeader } }
       })
+      const { data: { user: authUser }, error: authError } = await clientAuth.auth.getUser()
+
+      if (authError || !authUser) {
+        return new Response(JSON.stringify({ error: 'Unauthorized: ' + (authError?.message || 'Invalid user') }), { 
+          status: 401, 
+          headers: corsHeaders 
+        })
+      }
+      user = authUser
     }
 
     // 2. Inisialisasi client sistem dengan service role key (untuk memintas RLS di sisi backend)
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-    // Ambil role pengguna dari tabel profiles
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single()
-
-    const userRole = profile?.role || 'staff'
+    // Ambil role pengguna dari tabel profiles jika bukan service role
+    if (!isServiceRole && user) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single()
+      
+      userRole = profile?.role || 'staff'
+    }
 
     const { data: debugTpls } = await supabase.from('wa_templates').select('*')
     console.log("DEBUG: wa_templates content:", JSON.stringify(debugTpls))
@@ -508,7 +521,8 @@ async function executeWaDispatcher(supabase: any) {
 
         // Render template content helper
         const salutation = client.sapaan || client.salutation || settings.default_salutation || "Bapak/Ibu"
-        const name = client.nama || client.name || client.panggilan || client.nickname || "Bapak/Ibu"
+        const name = client.nama || client.name || "Bapak/Ibu"
+        const nickname = client.panggilan || client.nickname || name
         const school = client.sekolah || client.school || "Sekolah"
         const position = client.posisi || client.position || "Pengurus"
         const email = client.email || ""
@@ -518,6 +532,8 @@ async function executeWaDispatcher(supabase: any) {
           .replace(/\{\{\s*sapaan\s*\}\}/gi, salutation)
           .replace(/\{\{\s*name\s*\}\}/gi, name)
           .replace(/\{\{\s*nama\s*\}\}/gi, name)
+          .replace(/\{\{\s*nickname\s*\}\}/gi, nickname)
+          .replace(/\{\{\s*panggilan\s*\}\}/gi, nickname)
           .replace(/\{\{\s*school\s*\}\}/gi, school)
           .replace(/\{\{\s*sekolah\s*\}\}/gi, school)
           .replace(/\{\{\s*position\s*\}\}/gi, position)
