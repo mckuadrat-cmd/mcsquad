@@ -56,6 +56,16 @@ export const BroadcastProvider = ({ children }) => {
 
   useEffect(() => {
     refreshBroadcastData();
+
+    const channel = supabase.channel(`public:wa_client_drips_${Math.random().toString(36).substring(7)}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'wa_client_drips' }, () => {
+        refreshBroadcastData();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [refreshBroadcastData]);
 
   // Update WA Gateway Settings

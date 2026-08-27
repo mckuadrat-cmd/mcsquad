@@ -63,11 +63,25 @@ serve(async (req) => {
 
     console.log("Inbound webhook parsed payload:", { fromPhone, messageBody, rawPayload });
 
+    // Always log every incoming request to wa_inbound_logs for audit & debugging
+    try {
+      await supabase
+        .from('wa_inbound_logs')
+        .insert({
+          from_phone: fromPhone || 'unknown',
+          message_body: messageBody || '',
+          raw_payload: rawPayload,
+          processed_at: new Date().toISOString()
+        });
+    } catch (logErr) {
+      console.error("Failed to write wa_inbound_logs:", logErr);
+    }
+
     if (!fromPhone) {
       return new Response(JSON.stringify({ error: "Missing sender phone", receivedPayload: rawPayload }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" }
-      })
+      });
     }
 
     const formattedFrom = formatPhone(fromPhone)

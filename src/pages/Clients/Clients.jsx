@@ -10,9 +10,20 @@ import { openManualWaChat } from '../../utils/whatsappUtils';
 import { logActivity } from '../../utils/activityLogger';
 import { cascadeSchoolNameUpdate, calculateDynamicClientStatus, findSimilarSchool } from '../../utils/clientUtils';
 
+const formatDateSafely = (dateVal) => {
+  if (!dateVal) return '-';
+  try {
+    const d = dateVal?.toDate ? dateVal.toDate() : (dateVal instanceof Date ? dateVal : new Date(dateVal));
+    if (!d || isNaN(d.getTime())) return '-';
+    return d.toLocaleDateString('id-ID');
+  } catch (e) {
+    return '-';
+  }
+};
+
 const Clients = () => {
   const navigate = useNavigate();
-  const { clients, uniqueSchools, users = [] } = useAppData();
+  const { clients = [], uniqueSchools = [], users = [] } = useAppData();
   const { userRole, currentUser } = useAuth();
   const { showAlert, showConfirm, showToast } = useNotification();
   const { startClientDrip, stopClientDrip, clientDrips, dripSteps = [], templates = [] } = useBroadcast();
@@ -689,7 +700,7 @@ const Clients = () => {
                   const dynamicStatus = calculateDynamicClientStatus(client);
                   const statusStyle = getStatusStyle(dynamicStatus);
                   const prosesStyle = getProsesStyle(client.proses);
-                  const activeDrip = clientDrips.find(cd => cd.client_id === client.id && cd.status === 'active');
+                  const activeDrip = Array.isArray(clientDrips) ? clientDrips.find(cd => cd.client_id === client.id && cd.status === 'active') : null;
                   const isChecked = selectedClientIds.includes(client.id);
 
                   return (
@@ -808,11 +819,7 @@ const Clients = () => {
                           {client.lastActivityDesc || client.lastActivity || 'No Activity'}
                         </p>
                         <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-secondary)' }}>
-                          {client.lastActivityAt
-                            ? new Date(client.lastActivityAt).toLocaleDateString('id-ID')
-                            : (client.updatedAt?.toDate
-                              ? client.updatedAt.toDate().toLocaleDateString('id-ID')
-                              : (client.updatedAt ? new Date(client.updatedAt).toLocaleDateString('id-ID') : '-'))}
+                          {formatDateSafely(client.lastActivityAt || client.updatedAt)}
                         </p>
                       </td>
                       <td style={{ padding: '16px 20px' }}>
@@ -834,7 +841,7 @@ const Clients = () => {
                           }}
                         >
                           <option value="">-</option>
-                          {users.map(u => {
+                          {(users || []).map(u => {
                             const uName = u.nickname?.trim() || u.name?.trim() || u.email;
                             return <option key={u.id || uName} value={uName}>{uName}</option>;
                           })}
