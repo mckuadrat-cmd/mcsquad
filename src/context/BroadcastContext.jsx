@@ -32,21 +32,31 @@ export const BroadcastProvider = ({ children }) => {
   // Fetch all WhatsApp broadcast related data
   const refreshBroadcastData = useCallback(async () => {
     if (!currentUser) return;
-    setLoading(true);
     try {
-      const { data } = await invokeApi('/wa-all-data');
-      if (data) {
-        const { settings, templates: templatesData, broadcasts: broadcastsData, sequences: dripSeqData, steps: dripStepsData, drips: clientDripsData } = data;
-        
-        if (settings && settings.length > 0) {
-          setWaSettings(settings[0]);
-        }
-        setTemplates(parseDates(templatesData || [], ['created_at', 'updated_at']));
-        setBroadcasts(parseDates(broadcastsData || [], ['scheduled_at', 'created_at', 'updated_at']));
-        setDripSequences(parseDates(dripSeqData || [], ['created_at', 'updated_at']));
-        setDripSteps(parseDates(dripStepsData || [], ['created_at']));
-        setClientDrips(parseDates(clientDripsData || [], ['last_sent_at', 'next_scheduled_at', 'created_at', 'updated_at']));
+      const [
+        { data: settings },
+        { data: templatesData },
+        { data: broadcastsData },
+        { data: dripSeqData },
+        { data: dripStepsData },
+        { data: clientDripsData }
+      ] = await Promise.all([
+        supabase.from('wa_settings').select('*'),
+        supabase.from('wa_templates').select('*').order('created_at', { ascending: false }),
+        supabase.from('wa_broadcasts').select('*').order('created_at', { ascending: false }).limit(100),
+        supabase.from('wa_drip_sequences').select('*').order('created_at', { ascending: false }),
+        supabase.from('wa_drip_steps').select('*').order('created_at', { ascending: true }),
+        supabase.from('wa_client_drips').select('*').order('updated_at', { ascending: false }).limit(300)
+      ]);
+
+      if (settings && settings.length > 0) {
+        setWaSettings(settings[0]);
       }
+      setTemplates(parseDates(templatesData || [], ['created_at', 'updated_at']));
+      setBroadcasts(parseDates(broadcastsData || [], ['scheduled_at', 'created_at', 'updated_at']));
+      setDripSequences(parseDates(dripSeqData || [], ['created_at', 'updated_at']));
+      setDripSteps(parseDates(dripStepsData || [], ['created_at']));
+      setClientDrips(parseDates(clientDripsData || [], ['last_sent_at', 'next_scheduled_at', 'created_at', 'updated_at']));
     } catch (err) {
       console.error('Error fetching broadcast data:', err);
     } finally {
@@ -58,8 +68,11 @@ export const BroadcastProvider = ({ children }) => {
     refreshBroadcastData();
 
     const channel = supabase.channel(`public:wa_client_drips_${Math.random().toString(36).substring(7)}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'wa_client_drips' }, () => {
-        refreshBroadcastData();
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'wa_client_drips' }, async () => {
+        const { data } = await supabase.from('wa_client_drips').select('*').order('updated_at', { ascending: false }).limit(300);
+        if (data) {
+          setClientDrips(parseDates(data, ['last_sent_at', 'next_scheduled_at', 'created_at', 'updated_at']));
+        }
       })
       .subscribe();
 

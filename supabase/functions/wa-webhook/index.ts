@@ -108,7 +108,7 @@ serve(async (req) => {
         .from('wa_client_drips')
         .update({ 
           status: 'stopped_replied', 
-          stop_reason: `Balasan terdeteksi: "${messageBody.substring(0, 100)}"`,
+          stop_reason: 'Ada Balasan',
           updated_at: new Date().toISOString()
         })
         .eq('id', matchingDrip.id)
@@ -119,7 +119,7 @@ serve(async (req) => {
         .update({ 
           status: 'WARM', 
           proses: 'WARM',
-          lastActivityDesc: `WhatsApp dibalas: "${messageBody.substring(0, 100)}"`,
+          lastActivityDesc: 'Feedback Proses Sapa',
           lastActivityAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
         })
@@ -132,7 +132,7 @@ serve(async (req) => {
           userId: 'system',
           userName: 'System (WhatsApp Webhook)',
           date: new Date().toISOString().split('T')[0],
-          text: `WhatsApp dibalas oleh ${matchingDrip.client_name} (CRM otomatis status WARM)`,
+          text: `Feedback Proses Sapa dari ${matchingDrip.client_name}`,
           extraInfo: messageBody,
           type: 'auto',
           refId: matchingDrip.client_id,

@@ -34,12 +34,11 @@ export const AuthProvider = ({ children }) => {
           if (profile) {
             setUserProfile(profile);
             setUserRole(profile.role || 'staff');
-            try {
-              await invokeApi(`/profiles?id=eq.${user.id}`, {
-                method: 'PUT',
-                body: { isOnline: true, lastSeen: new Date().toISOString() }
-              });
-            } catch (err) {}
+            // Non-blocking status update
+            invokeApi(`/profiles?id=eq.${user.id}`, {
+              method: 'PUT',
+              body: { isOnline: true, lastSeen: new Date().toISOString() }
+            }).catch(() => {});
           } else {
             setUserProfile(null);
             setUserRole('staff');
@@ -74,12 +73,11 @@ export const AuthProvider = ({ children }) => {
           if (profile) {
             setUserProfile(profile);
             setUserRole(profile.role || 'staff');
-            try {
-              await invokeApi(`/profiles?id=eq.${user.id}`, {
-                method: 'PUT',
-                body: { isOnline: true, lastSeen: new Date().toISOString() }
-              });
-            } catch (err) {}
+            // Non-blocking status update
+            invokeApi(`/profiles?id=eq.${user.id}`, {
+              method: 'PUT',
+              body: { isOnline: true, lastSeen: new Date().toISOString() }
+            }).catch(() => {});
           } else {
             setUserProfile(null);
             setUserRole('staff');
@@ -186,9 +184,21 @@ export const AuthProvider = ({ children }) => {
     resetPassword
   };
 
+  if (loading) {
+    return (
+      <div style={{ 
+        height: '100vh', width: '100%', display: 'flex', alignItems: 'center', 
+        justifyContent: 'center', backgroundColor: '#FAFBFC', flexDirection: 'column', gap: '16px'
+      }}>
+        <div className="animate-spin" style={{ width: '40px', height: '40px', border: '4px solid #E5EFFF', borderTopColor: '#4680FF', borderRadius: '50%' }}></div>
+        <p style={{ color: '#7A849C', fontSize: '14px', fontWeight: 600 }}>Memuat aplikasi...</p>
+      </div>
+    );
+  }
+
   return (
     <AuthContext.Provider value={value}>
-      {!loading && children}
+      {children}
     </AuthContext.Provider>
   );
 };

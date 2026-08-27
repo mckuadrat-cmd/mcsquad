@@ -137,29 +137,43 @@ const Dashboard = () => {
     return 'Rp' + new Intl.NumberFormat('id-ID').format(val) + ',-';
   };
 
+  const COLORS = ['#FF4B4B', '#FF8A8A', '#2ED47A', '#FFBA08', '#9C27B0'];
+
+  if (loading) {
+    return (
+      <div style={{
+        height: '60vh', width: '100%', display: 'flex', alignItems: 'center',
+        justifyContent: 'center', flexDirection: 'column', gap: '16px'
+      }}>
+        <div className="animate-spin" style={{ width: '36px', height: '36px', border: '3px solid #E5EFFF', borderTopColor: '#4680FF', borderRadius: '50%' }}></div>
+        <p style={{ color: '#7A849C', fontSize: '14px', fontWeight: 600 }}>Memuat data dashboard...</p>
+      </div>
+    );
+  }
+
   // 1. Leads Pipeline Funnel
   const pipelineData = [
-    { stage: 'Suspect', count: leads.suspect.items.length },
-    { stage: 'Prospek', count: leads.prospek.items.length },
-    { stage: 'Negotiation', count: leads.confirm.items.length },
-    { stage: 'Deal', count: leads.deal.items.length },
-    { stage: 'Closed Won', count: leads.buyer.items.length },
+    { stage: 'Suspect', count: leads?.suspect?.items?.length || 0 },
+    { stage: 'Prospek', count: leads?.prospek?.items?.length || 0 },
+    { stage: 'Negotiation', count: leads?.confirm?.items?.length || 0 },
+    { stage: 'Deal', count: leads?.deal?.items?.length || 0 },
+    { stage: 'Closed Won', count: leads?.buyer?.items?.length || 0 },
   ];
 
   // 2. KPIS
-  const totalActiveClients = clients.filter(c => c.status === 'Active').length;
-  const totalLeads = Object.values(leads).reduce((acc, col) => acc + col.items.length, 0);
-  const totalProjects = projects.filter(p => p.status !== 'Completed').length;
-  const dealCount = leads.deal.items.length + leads.buyer.items.length;
+  const totalActiveClients = (clients || []).filter(c => c.status === 'Active' || c.status === 'COLD' || c.status === 'WARM' || c.status === 'HOT').length;
+  const totalLeads = leads ? Object.values(leads).reduce((acc, col) => acc + (col?.items?.length || 0), 0) : 0;
+  const totalProjects = (projects || []).filter(p => p.status !== 'Completed').length;
+  const dealCount = (leads?.deal?.items?.length || 0) + (leads?.buyer?.items?.length || 0);
   const conversionRate = totalLeads > 0 ? Math.round((dealCount / totalLeads) * 100) : 0;
 
-  // 3. Real Income vs Estimasi (Simplify for dashboard overview)
-  const realIncomeVal = leads.buyer.items.reduce((acc, lead) => acc + parsePrice(lead.price), 0);
-  const estimasiPipelineVal = Object.values(leads).reduce((acc, col) => acc + col.items.reduce((sum, l) => sum + parsePrice(l.price), 0), 0);
+  // 3. Real Income vs Estimasi
+  const realIncomeVal = (leads?.buyer?.items || []).reduce((acc, lead) => acc + parsePrice(lead.price), 0);
+  const estimasiPipelineVal = leads ? Object.values(leads).reduce((acc, col) => acc + (col?.items || []).reduce((sum, l) => sum + parsePrice(l.price), 0), 0) : 0;
 
   // 4. Pie Chart: Revenue per Program (Top 4)
   const programCounts = {};
-  [...leads.deal.items, ...leads.buyer.items].forEach(item => {
+  [...(leads?.deal?.items || []), ...(leads?.buyer?.items || [])].forEach(item => {
     const prog = item.program || 'Other';
     programCounts[prog] = (programCounts[prog] || 0) + parsePrice(item.price);
   });
@@ -168,16 +182,12 @@ const Dashboard = () => {
 
   // 5. Bar Chart: Revenue per PIC
   const picRevenue = {};
-  [...leads.deal.items, ...leads.buyer.items].forEach(item => {
+  [...(leads?.deal?.items || []), ...(leads?.buyer?.items || [])].forEach(item => {
     const pic = item.pic || 'Unassigned';
-    picRevenue[pic] = (picRevenue[pic] || 0) + parsePrice(item.price) / 1000000; // In Millions
+    picRevenue[pic] = (picRevenue[pic] || 0) + parsePrice(item.price) / 1000000;
   });
   const picData = Object.entries(picRevenue).map(([name, revenue]) => ({ name, revenue }))
     .sort((a, b) => b.revenue - a.revenue).slice(0, 5);
-
-  const COLORS = ['#FF4B4B', '#FF8A8A', '#2ED47A', '#FFBA08', '#9C27B0'];
-
-  if (loading) return <div style={{ padding: '40px', textAlign: 'center' }}>Loading live dashboard data...</div>;
 
   // Mock Trend for display if no historical data yet
   const leadsPerMonth = [

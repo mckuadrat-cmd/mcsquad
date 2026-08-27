@@ -439,7 +439,7 @@ const Broadcast = () => {
                                   cd.status === 'paused' ? 'Ditangguhkan' :
                                     cd.status === 'completed' ? 'Selesai' : cd.status}
                             </span>
-                            {cd.stop_reason && (
+                            {cd.stop_reason && cd.stop_reason !== 'Ada Balasan' && (
                               <div style={{ fontSize: '11px', color: '#E65100', marginTop: '4px', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={cd.stop_reason}>
                                 ⚠️ {cd.stop_reason}
                               </div>
