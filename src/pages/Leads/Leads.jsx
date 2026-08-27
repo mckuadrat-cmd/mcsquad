@@ -162,9 +162,9 @@ const Leads = () => {
   }, [newLead.schoolName, uniqueSchools]);
 
   const formatRupiah = (value) => {
-    if (!value) return '';
-    const numberString = value.replace(/[^0-9]/g, '');
-    const number = parseInt(numberString);
+    if (value === null || value === undefined || value === '') return '';
+    const numberString = String(value).replace(/[^0-9]/g, '');
+    const number = parseInt(numberString, 10);
     if (isNaN(number)) return '';
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
