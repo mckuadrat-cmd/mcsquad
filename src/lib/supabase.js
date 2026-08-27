@@ -46,7 +46,10 @@ export const parseDates = (obj, fields = ['createdAt', 'updatedAt', 'lastSeen', 
         for (let j = 0; j < fields.length; j++) {
           const field = fields[j];
           if (item[field] && typeof item[field] === 'string') {
-            item[field] = new Date(item[field]);
+            const d = new Date(item[field]);
+            if (!isNaN(d.getTime())) {
+              item[field] = d;
+            }
           }
         }
       }
@@ -57,7 +60,10 @@ export const parseDates = (obj, fields = ['createdAt', 'updatedAt', 'lastSeen', 
     for (let j = 0; j < fields.length; j++) {
       const field = fields[j];
       if (obj[field] && typeof obj[field] === 'string') {
-        obj[field] = new Date(obj[field]);
+        const d = new Date(obj[field]);
+        if (!isNaN(d.getTime())) {
+          obj[field] = d;
+        }
       }
     }
   }

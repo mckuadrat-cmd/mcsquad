@@ -36,50 +36,54 @@ const PageLoader = () => (
   </div>
 );
 
+import ErrorBoundary from './components/ErrorBoundary';
+
 function App() {
   return (
-    <AuthProvider>
-      <NotificationProvider>
-        <AppDataProvider>
-          <BroadcastProvider>
-            <ChatProvider>
-              <Router>
-                <Suspense fallback={<PageLoader />}>
-                  <Routes>
-                    {/* Public Route */}
-                    <Route path="/login" element={<Login />} />
-                    <Route path="/reset-password" element={<ResetPassword />} />
-                    
-                    {/* Protected Routes directly under Layout */}
-                    <Route path="/" element={
-                      <ProtectedRoute>
-                        <Layout />
-                      </ProtectedRoute>
-                    }>
-                      <Route index element={<Navigate to="/dashboard" replace />} />
-                      <Route path="dashboard" element={<Dashboard />} />
-                      <Route path="clients" element={<Clients />} />
-                      <Route path="proses-sapa" element={<Broadcast />} />
+    <ErrorBoundary>
+      <AuthProvider>
+        <NotificationProvider>
+          <AppDataProvider>
+            <BroadcastProvider>
+              <ChatProvider>
+                <Router>
+                  <Suspense fallback={<PageLoader />}>
+                    <Routes>
+                      {/* Public Route */}
+                      <Route path="/login" element={<Login />} />
+                      <Route path="/reset-password" element={<ResetPassword />} />
+                      
+                      {/* Protected Routes directly under Layout */}
+                      <Route path="/" element={
+                        <ProtectedRoute>
+                          <Layout />
+                        </ProtectedRoute>
+                      }>
+                        <Route index element={<Navigate to="/dashboard" replace />} />
+                        <Route path="dashboard" element={<Dashboard />} />
+                        <Route path="clients" element={<Clients />} />
+                        <Route path="proses-sapa" element={<Broadcast />} />
 
-                      <Route path="leads" element={<Leads />} />
-                      <Route path="calendar" element={<Calendar />} />
-                      <Route path="documents" element={<Documents />} />
-                      <Route path="projects" element={<Projects />} />
-                      <Route path="chat" element={<Chat />} />
-                      <Route path="settings" element={<SettingsView />} />
-                      <Route path="activity" element={<DailyActivity />} />
-                      {/* New Feature Routes */}
-                      <Route path="clients/dashboard/:schoolName" element={<ClientDashboard />} />
-                      <Route path="reports/event" element={<ReviewReport />} />
-                    </Route>
-                  </Routes>
-                </Suspense>
-              </Router>
-            </ChatProvider>
-          </BroadcastProvider>
-        </AppDataProvider>
-      </NotificationProvider>
-    </AuthProvider>
+                        <Route path="leads" element={<Leads />} />
+                        <Route path="calendar" element={<Calendar />} />
+                        <Route path="documents" element={<Documents />} />
+                        <Route path="projects" element={<Projects />} />
+                        <Route path="chat" element={<Chat />} />
+                        <Route path="settings" element={<SettingsView />} />
+                        <Route path="activity" element={<DailyActivity />} />
+                        {/* New Feature Routes */}
+                        <Route path="clients/dashboard/:schoolName" element={<ClientDashboard />} />
+                        <Route path="reports/event" element={<ReviewReport />} />
+                      </Route>
+                    </Routes>
+                  </Suspense>
+                </Router>
+              </ChatProvider>
+            </BroadcastProvider>
+          </AppDataProvider>
+        </NotificationProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
 
