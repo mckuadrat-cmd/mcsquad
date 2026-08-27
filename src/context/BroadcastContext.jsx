@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { invokeApi, parseDates } from '../lib/supabase';
+import { supabase, invokeApi, parseDates } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 import { useNotification } from './NotificationContext';
 import { renderTemplateContent, dispatchWaMessage } from '../utils/whatsappUtils';
