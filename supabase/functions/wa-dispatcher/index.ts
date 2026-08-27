@@ -226,6 +226,16 @@ serve(async (req) => {
             })
 
           if (success) {
+            // Update client last activity in CRM
+            await supabase
+              .from('clients')
+              .update({
+                lastActivityDesc: `Proses Sapa Tahap ${drip.current_step_number} terkirim`,
+                lastActivityAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+              })
+              .eq('id', drip.client_id)
+
             // Check if there is a next step
             const nextStepNum = drip.current_step_number + 1
             const { data: nextStep } = await supabase

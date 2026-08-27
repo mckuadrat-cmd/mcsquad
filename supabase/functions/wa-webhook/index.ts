@@ -9,7 +9,7 @@ const corsHeaders = {
 
 function formatPhone(phone: string): string {
   if (!phone) return "";
-  let cleaned = phone.replace(/\D/g, "");
+  let cleaned = phone.split('@')[0].replace(/\D/g, "");
   if (cleaned.startsWith("0")) {
     cleaned = "62" + cleaned.substring(1);
   } else if (cleaned.startsWith("8")) {
@@ -33,27 +33,39 @@ serve(async (req) => {
     let rawPayload: any = {};
 
     const contentType = req.headers.get("content-type") || "";
-    if (contentType.includes("application/x-www-form-urlencoded")) {
-      const formData = await req.formData();
-      fromPhone = formData.get("sender")?.toString() || formData.get("from")?.toString() || "";
-      messageBody = formData.get("message")?.toString() || formData.get("msg")?.toString() || "";
-      
-      const obj: any = {};
-      for (const [key, value] of formData.entries()) {
-        obj[key] = value;
-      }
-      rawPayload = obj;
-    } else {
+    if (contentType.includes("application/json")) {
       const body = await req.json();
-      fromPhone = body.sender || body.from || body.phone || "";
-      messageBody = body.message || body.msg || body.text || "";
+      fromPhone = body.sender || body.from || body.phone || body.target || body.wa_number || "";
+      messageBody = body.message || body.msg || body.text || body.body || "";
       rawPayload = body;
+    } else {
+      try {
+        const formData = await req.formData();
+        fromPhone = formData.get("sender")?.toString() || formData.get("from")?.toString() || formData.get("phone")?.toString() || formData.get("target")?.toString() || "";
+        messageBody = formData.get("message")?.toString() || formData.get("msg")?.toString() || formData.get("text")?.toString() || "";
+        const obj: any = {};
+        for (const [key, value] of formData.entries()) {
+          obj[key] = value;
+        }
+        rawPayload = obj;
+      } catch (e) {
+        const text = await req.text();
+        try {
+          const body = JSON.parse(text);
+          fromPhone = body.sender || body.from || body.phone || body.target || "";
+          messageBody = body.message || body.msg || body.text || "";
+          rawPayload = body;
+        } catch {
+          rawPayload = { raw: text };
+        }
+      }
     }
+
     console.log("Inbound webhook parsed payload:", { fromPhone, messageBody, rawPayload });
 
     if (!fromPhone) {
-      return new Response(JSON.stringify({ error: "Missing sender phone" }), {
-        status: 400,
+      return new Response(JSON.stringify({ error: "Missing sender phone", receivedPayload: rawPayload }), {
+        status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" }
       })
     }
@@ -68,7 +80,11 @@ serve(async (req) => {
 
     if (dripErr) throw dripErr
 
-    const matchingDrip = activeDrips?.find(d => formatPhone(d.phone) === formattedFrom)
+    const matchingDrip = activeDrips?.find(d => {
+      const p1 = formatPhone(d.phone);
+      const p2 = formattedFrom;
+      return p1 === p2 || (p1.length >= 8 && p2.length >= 8 && p1.slice(-9) === p2.slice(-9));
+    })
 
     if (matchingDrip) {
       console.log(`Matching active drip found for client: ${matchingDrip.client_name}. Stopping drip...`)
@@ -125,7 +141,7 @@ serve(async (req) => {
         processed_at: new Date().toISOString()
       })
 
-    return new Response(JSON.stringify({ success: true, stoppedDrip: !!matchingDrip }), {
+    return new Response(JSON.stringify({ success: true, stoppedDrip: !!matchingDrip, matchedClient: matchingDrip?.client_name || null }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" }
     })

@@ -349,10 +349,10 @@ const Broadcast = () => {
                   onChange={e => setDripStatusFilter(e.target.value)}
                   style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '14px', outline: 'none', fontWeight: 600, width: '180px' }}
                 >
-                  <option value="all">Semua Status Drip</option>
-                  <option value="active">Aktif (Sedang Berjalan)</option>
-                  <option value="stopped_replied">Stopped (Ada Balasan)</option>
-                  <option value="completed">Completed (Selesai Sequence)</option>
+                  <option value="all">Semua</option>
+                  <option value="active">Aktif</option>
+                  <option value="stopped_replied">Stopped</option>
+                  <option value="completed">Completed</option>
                 </select>
 
                 {isAdminOrOwner && (

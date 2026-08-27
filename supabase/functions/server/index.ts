@@ -638,6 +638,16 @@ async function executeWaDispatcher(supabase: any) {
           })
 
         if (success) {
+          // Update client last activity in CRM
+          await supabase
+            .from('clients')
+            .update({
+              lastActivityDesc: `Proses Sapa Tahap ${drip.current_step_number} terkirim`,
+              lastActivityAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
+            })
+            .eq('id', drip.client_id)
+
           const nextStepNum = drip.current_step_number + 1
           const { data: nextStep } = await supabase
             .from('wa_drip_steps')

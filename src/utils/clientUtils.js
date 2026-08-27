@@ -112,21 +112,11 @@ export const updateClientActivity = async (schoolName, description) => {
   if (!schoolName || !description) return;
 
   try {
-    const { data: clients } = await supabase
-      .from('clients')
-      .select('id, status')
-      .eq('sekolah', schoolName);
-
     const updatePayload = {
       lastActivityDesc: description,
       lastActivityAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
-
-    // Auto-upgrade COLD clients to WARM upon active interaction
-    if (clients && clients.some(c => !c.status || c.status.toUpperCase() === 'COLD')) {
-      updatePayload.status = 'WARM';
-    }
 
     await supabase
       .from('clients')

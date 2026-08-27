@@ -457,7 +457,8 @@ const Leads = () => {
           posisi: '',
           whatsapp: '',
           email: '',
-          status: 'Active',
+          status: 'COLD',
+          proses: 'SUSPECT',
           notes: 'Dibuat otomatis dari Leads',
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
@@ -467,6 +468,8 @@ const Leads = () => {
       });
       finalSchoolPic = newLead.newPicName.trim();
     }
+
+    const hasValidDate = newLead.date && newLead.date !== 'TBD';
 
     const lead = {
       id: newId,
@@ -482,7 +485,7 @@ const Leads = () => {
       duration: newLead.duration,
       notes: newLead.notes,
       status: 'suspect',
-      calendarEventId: newLead.date ? `EVL-${newId}` : null,
+      calendarEventId: hasValidDate ? `EVL-${newId}` : null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
@@ -493,8 +496,8 @@ const Leads = () => {
       // Auto Log Activity
       logActivity(currentUser, `Menambah Lead baru: ${lead.schoolName} - ${lead.program}`, newId, 'Lead', 'Leads');
 
-      // Auto-Sync to Calendar
-      if (lead.calendarEventId) {
+      // Auto-Sync to Calendar only if valid date provided
+      if (lead.calendarEventId && hasValidDate) {
         let endDate = newLead.date;
         const durHours = parseInt(newLead.duration);
 
@@ -752,7 +755,7 @@ const Leads = () => {
                                       <div style={{ width: '18px', height: '18px', backgroundColor: '#E5EFFF', color: '#4680FF', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '10px' }}>
                                         {item.pic?.charAt(0).toUpperCase() || '?'}
                                       </div>
-                                      <span className="text-truncate">PIC: {item.pic}</span>
+                                      <span className="text-truncate">AO: {item.pic}</span>
                                     </div>
 
                                     {/* Action Buttons (Now in detail area) */}
@@ -1017,7 +1020,7 @@ const Leads = () => {
                     </select>
                   </div>
                   <div style={{ flex: 1 }}>
-                    <label className="text-sm font-medium mb-2 block">PIC Terkait</label>
+                    <label className="text-sm font-medium mb-2 block">AO (Account Officer)</label>
                     <input
                       type="text"
                       disabled

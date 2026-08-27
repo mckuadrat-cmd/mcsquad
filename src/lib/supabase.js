@@ -76,8 +76,17 @@ export const invokeApi = async (path, options = {}) => {
   });
 
   if (error) {
-    console.error(`API Gateway Error [${method} ${cleanedPath}]:`, error);
-    throw error;
+    let detailMsg = error.message;
+    try {
+      if (error.context && typeof error.context.json === 'function') {
+        const bodyJson = await error.context.json();
+        if (bodyJson?.error) {
+          detailMsg = bodyJson.error;
+        }
+      }
+    } catch (e) {}
+    console.error(`API Gateway Error [${method} ${cleanedPath}]:`, detailMsg, error);
+    throw new Error(detailMsg);
   }
 
   return { data, error };

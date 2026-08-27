@@ -12,7 +12,7 @@ import { cascadeSchoolNameUpdate, calculateDynamicClientStatus, findSimilarSchoo
 
 const Clients = () => {
   const navigate = useNavigate();
-  const { clients, uniqueSchools } = useAppData();
+  const { clients, uniqueSchools, users = [] } = useAppData();
   const { userRole, currentUser } = useAuth();
   const { showAlert, showConfirm, showToast } = useNotification();
   const { startClientDrip, stopClientDrip, clientDrips, dripSteps = [], templates = [] } = useBroadcast();
@@ -46,7 +46,8 @@ const Clients = () => {
     posisi: '',
     whatsapp: '',
     email: '',
-    notes: ''
+    notes: '',
+    ao: ''
   });
 
   // Autocomplete State
@@ -81,7 +82,8 @@ const Clients = () => {
         posisi: editingClient.posisi || editingClient.position || '',
         whatsapp: editingClient.whatsapp || editingClient.phone || '',
         email: editingClient.email || '',
-        notes: editingClient.notes || ''
+        notes: editingClient.notes || '',
+        ao: editingClient.ao || ''
       });
     } else {
       setFormData({
@@ -94,7 +96,8 @@ const Clients = () => {
         posisi: '',
         whatsapp: '',
         email: '',
-        notes: ''
+        notes: '',
+        ao: ''
       });
     }
   }, [editingClient]);
@@ -203,6 +206,7 @@ const Clients = () => {
       posisi: formData.posisi,
       whatsapp: formData.whatsapp,
       email: formData.email,
+      ao: formData.ao || '',
       notes: formData.notes,
       status: editingClient ? (editingClient.status || 'COLD') : 'COLD',
       proses: editingClient ? (editingClient.proses || 'SUSPECT') : 'SUSPECT',
@@ -658,6 +662,7 @@ const Clients = () => {
                   <th style={{ padding: '16px 20px', fontWeight: 600 }}>Nama Client</th>
                   <th style={{ padding: '16px 20px', fontWeight: 600 }}>Sekolah</th>
                   <th style={{ padding: '16px 20px', fontWeight: 600 }}>Kontak</th>
+                  <th style={{ padding: '16px 20px', fontWeight: 600 }}>AO</th>
                   <th style={{ padding: '16px 20px', fontWeight: 600 }}>Status</th>
                   <th style={{ padding: '16px 20px', fontWeight: 600 }}>Proses</th>
                   <th style={{ padding: '16px 20px', fontWeight: 600 }}>Status Sapa</th>
@@ -667,7 +672,7 @@ const Clients = () => {
               </thead>
               <tbody>
                 {paginatedClients.length === 0 ? (
-                  <tr><td colSpan="9" style={{ textAlign: 'center', padding: '40px' }}>Tidak ada data.</td></tr>
+                  <tr><td colSpan="10" style={{ textAlign: 'center', padding: '40px' }}>Tidak ada data.</td></tr>
                 ) : paginatedClients.map((client, idx) => {
                   const dynamicStatus = calculateDynamicClientStatus(client);
                   const statusStyle = getStatusStyle(dynamicStatus);
@@ -701,6 +706,11 @@ const Clients = () => {
                       <td style={{ padding: '16px 20px' }}>
                         <p style={{ margin: 0, fontSize: '14px' }}>{client.whatsapp || client.phone}</p>
                         <p style={{ margin: 0, fontSize: '14px', color: 'var(--text-secondary)' }}>{client.email}</p>
+                      </td>
+                      <td style={{ padding: '16px 20px' }}>
+                        <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: client.ao ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
+                          {client.ao || '-'}
+                        </p>
                       </td>
                       <td style={{ padding: '16px 20px' }}>
                         <select
@@ -777,8 +787,14 @@ const Clients = () => {
                       </td>
 
                       <td style={{ padding: '16px 20px' }}>
-                        <p style={{ margin: 0, fontSize: '14px', fontWeight: 500 }}>{client.lastActivity || 'No Activity'}</p>
-                        <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-secondary)' }}>{client.updatedAt?.toDate ? client.updatedAt.toDate().toLocaleDateString() : (client.updatedAt ? new Date(client.updatedAt).toLocaleDateString() : '-')}</p>
+                        <p style={{ margin: 0, fontSize: '14px', fontWeight: 500 }}>{client.lastActivityDesc || client.lastActivity || 'No Activity'}</p>
+                        <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-secondary)' }}>
+                          {client.lastActivityAt
+                            ? new Date(client.lastActivityAt).toLocaleDateString('id-ID')
+                            : (client.updatedAt?.toDate
+                              ? client.updatedAt.toDate().toLocaleDateString('id-ID')
+                              : (client.updatedAt ? new Date(client.updatedAt).toLocaleDateString('id-ID') : '-'))}
+                        </p>
                       </td>
                       <td style={{ padding: '16px 20px', textAlign: 'center' }}>
 
@@ -989,6 +1005,22 @@ const Clients = () => {
                     <label className="text-sm font-bold mb-2 block">Email</label>
                     <input type="email" disabled={isViewMode} value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="form-input" />
                   </div>
+                </div>
+
+                <div>
+                  <label className="text-sm font-bold mb-2 block">AO (Account Officer / Internal)</label>
+                  <select
+                    disabled={isViewMode}
+                    value={formData.ao || ''}
+                    onChange={(e) => setFormData({ ...formData, ao: e.target.value })}
+                    className="form-input"
+                  >
+                    <option value="">-- Belum Ditentukan (Kosong) --</option>
+                    {users.map(u => {
+                      const uName = u.nickname?.trim() || u.name?.trim() || u.email;
+                      return <option key={u.id || uName} value={uName}>{uName}</option>;
+                    })}
+                  </select>
                 </div>
 
                 <div>
