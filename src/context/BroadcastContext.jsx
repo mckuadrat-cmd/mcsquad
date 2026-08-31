@@ -76,10 +76,33 @@ export const BroadcastProvider = ({ children }) => {
       })
       .subscribe();
 
+    // Auto-dispatcher background check every 5 minutes when logged in
+    const autoDispatchInterval = setInterval(async () => {
+      if (!currentUser) return;
+      try {
+        const nowIso = new Date().toISOString();
+        const { data: dueItems } = await supabase
+          .from('wa_client_drips')
+          .select('id')
+          .eq('status', 'active')
+          .lte('next_scheduled_at', nowIso)
+          .limit(1);
+
+        if (dueItems && dueItems.length > 0) {
+          console.log('[Auto-Dispatcher] Due drips detected, triggering background dispatch...');
+          await invokeApi('/wa-dispatch', { method: 'POST' });
+          refreshBroadcastData();
+        }
+      } catch (err) {
+        console.warn('[Auto-Dispatcher] Background check notice:', err?.message || err);
+      }
+    }, 5 * 60 * 1000);
+
     return () => {
       supabase.removeChannel(channel);
+      clearInterval(autoDispatchInterval);
     };
-  }, [refreshBroadcastData]);
+  }, [refreshBroadcastData, currentUser]);
 
   // Update WA Gateway Settings
   const updateSettings = async (newSettings) => {
@@ -220,7 +243,7 @@ export const BroadcastProvider = ({ children }) => {
   };
 
   // Start Cold Outreach Drip Sequence ("Proses Sapa") for a client
-  const startClientDrip = async (client, sequenceId) => {
+  const startClientDrip = async (client, sequenceId, delayOffsetMinutes = 0) => {
     try {
       const activeSeq = dripSequences.find(s => s.id === sequenceId) || dripSequences[0];
       const seqId = activeSeq?.id || 'd1a93e32-2415-46b7-84d4-28b9fb6c0850';
@@ -233,7 +256,8 @@ export const BroadcastProvider = ({ children }) => {
         return existing;
       }
 
-      const nextScheduled = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+      // Base delay 15 mins + staggered offset per client
+      const nextScheduled = new Date(Date.now() + (15 + delayOffsetMinutes) * 60 * 1000).toISOString();
       const payload = {
         client_id: client.id,
         client_name: clientNameStr,

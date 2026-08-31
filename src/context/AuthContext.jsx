@@ -13,36 +13,48 @@ export const AuthProvider = ({ children }) => {
   const [googleAccessToken, setGoogleAccessToken] = useState(null);
 
   useEffect(() => {
+    let lastFetchedUserId = null;
+
+    const fetchUserProfile = async (user) => {
+      if (!user) {
+        setUserProfile(null);
+        setUserRole(null);
+        return;
+      }
+      if (lastFetchedUserId === user.id) return;
+      lastFetchedUserId = user.id;
+
+      try {
+        const { data: profile } = await invokeApi(`/profiles?id=eq.${user.id}&single=true`);
+        if (profile) {
+          setUserProfile(profile);
+          setUserRole(profile.role || 'staff');
+          invokeApi(`/profiles?id=eq.${user.id}`, {
+            method: 'PUT',
+            body: { isOnline: true, lastSeen: new Date().toISOString() }
+          }).catch(() => {});
+        } else {
+          setUserProfile(null);
+          setUserRole('staff');
+        }
+      } catch (e) {
+        console.error("Error fetching user profile:", e);
+        setUserProfile(null);
+        setUserRole('staff');
+      }
+    };
+
     // 1. Initial Session Check
     const checkSession = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         const user = session?.user || null;
         if (user) {
-          user.uid = user.id; // Map uid to id for legacy firebase components compatibility
+          user.uid = user.id;
         }
         setCurrentUser(user);
         if (user) {
-          let profile = null;
-          try {
-            const { data } = await invokeApi(`/profiles?id=eq.${user.id}&single=true`);
-            profile = data;
-          } catch (e) {
-            console.error("Error fetching user profile via api:", e);
-          }
-            
-          if (profile) {
-            setUserProfile(profile);
-            setUserRole(profile.role || 'staff');
-            // Non-blocking status update
-            invokeApi(`/profiles?id=eq.${user.id}`, {
-              method: 'PUT',
-              body: { isOnline: true, lastSeen: new Date().toISOString() }
-            }).catch(() => {});
-          } else {
-            setUserProfile(null);
-            setUserRole('staff');
-          }
+          await fetchUserProfile(user);
         }
       } catch (err) {
         console.error("Error during initial session check:", err);
@@ -56,38 +68,14 @@ export const AuthProvider = ({ children }) => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       const user = session?.user || null;
       if (user) {
-        user.uid = user.id; // Map uid to id
+        user.uid = user.id;
       }
       setCurrentUser(user);
       
       if (user) {
-        try {
-          let profile = null;
-          try {
-            const { data } = await invokeApi(`/profiles?id=eq.${user.id}&single=true`);
-            profile = data;
-          } catch (e) {
-            console.error("Error fetching user profile via api:", e);
-          }
-
-          if (profile) {
-            setUserProfile(profile);
-            setUserRole(profile.role || 'staff');
-            // Non-blocking status update
-            invokeApi(`/profiles?id=eq.${user.id}`, {
-              method: 'PUT',
-              body: { isOnline: true, lastSeen: new Date().toISOString() }
-            }).catch(() => {});
-          } else {
-            setUserProfile(null);
-            setUserRole('staff');
-          }
-        } catch (e) {
-          console.error("Error fetching user profile:", e);
-          setUserProfile(null);
-          setUserRole('staff');
-        }
+        fetchUserProfile(user);
       } else {
+        lastFetchedUserId = null;
         setCurrentUser(null);
         setUserProfile(null);
         setUserRole(null);
@@ -95,43 +83,33 @@ export const AuthProvider = ({ children }) => {
       setLoading(false);
     });
 
-    // 3. Visibility Change Heartbeat
-    const handleVisibilityChange = async () => {
-      const user = (await supabase.auth.getSession()).data.session?.user;
-      if (!user) return;
-      try {
-        const isOnline = document.visibilityState === 'visible';
-        await invokeApi(`/profiles?id=eq.${user.id}`, {
-          method: 'PUT',
-          body: { isOnline: isOnline, lastSeen: new Date().toISOString() }
-        });
-      } catch (err) {
-        console.error("Visibility update failed:", err);
-      }
+    // 3. Visibility Change & Heartbeat (non-blocking)
+    const handleVisibilityChange = () => {
+      if (!currentUser?.id) return;
+      const isOnline = document.visibilityState === 'visible';
+      invokeApi(`/profiles?id=eq.${currentUser.id}`, {
+        method: 'PUT',
+        body: { isOnline: isOnline, lastSeen: new Date().toISOString() }
+      }).catch(() => {});
     };
 
-    // Heartbeat to keep lastSeen fresh
-    const heartbeatInterval = setInterval(async () => {
-      const user = (await supabase.auth.getSession()).data.session?.user;
-      if (user && document.visibilityState === 'visible') {
-        try {
-          await invokeApi(`/profiles?id=eq.${user.id}`, {
-            method: 'PUT',
-            body: { isOnline: true, lastSeen: new Date().toISOString() }
-          });
-        } catch (e) {}
+    const heartbeatInterval = setInterval(() => {
+      if (currentUser?.id && document.visibilityState === 'visible') {
+        invokeApi(`/profiles?id=eq.${currentUser.id}`, {
+          method: 'PUT',
+          body: { isOnline: true, lastSeen: new Date().toISOString() }
+        }).catch(() => {});
       }
-    }, 60000); // Every 1 minute
+    }, 120000); // Every 2 minutes non-blocking
 
     window.addEventListener('visibilitychange', handleVisibilityChange);
 
-    const handleBeforeUnload = async () => {
-      const user = (await supabase.auth.getSession()).data.session?.user;
-      if (user) {
-        await invokeApi(`/profiles?id=eq.${user.id}`, {
+    const handleBeforeUnload = () => {
+      if (currentUser?.id) {
+        invokeApi(`/profiles?id=eq.${currentUser.id}`, {
           method: 'PUT',
           body: { isOnline: false, lastSeen: new Date().toISOString() }
-        });
+        }).catch(() => {});
       }
     };
     window.addEventListener('beforeunload', handleBeforeUnload);

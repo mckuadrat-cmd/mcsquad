@@ -122,15 +122,15 @@ serve(async (req) => {
 
     if (table === 'wa-dispatch' && req.method === 'POST') {
       if (userRole !== 'owner' && userRole !== 'admin') {
-        return new Response(JSON.stringify({ error: 'Forbidden: Only admin/owner can trigger dispatcher' }), { 
+        return new Response(JSON.stringify({ error: 'Forbidden: Hanya Admin dan Owner yang memiliki izin memicu dispatcher WhatsApp.' }), { 
           status: 403, 
           headers: corsHeaders 
         })
       }
       
-      console.log("Running wa-dispatcher locally on same container...")
+      console.log("Running wa-dispatcher for nearest active drip...")
       const dispatchResult = await executeWaDispatcher(supabase)
-      return new Response(JSON.stringify({ success: true, ...dispatchResult }), {
+      return new Response(JSON.stringify({ success: dispatchResult.success !== false, ...dispatchResult }), {
         status: 200,
         headers: corsHeaders
       })
@@ -438,286 +438,315 @@ async function executeWaDispatcher(supabase: any) {
 
 
   if (!settings || !settings.third_party_api_key) {
-    return { processedCount: 0, message: "Gateway settings or API key is missing." };
+    return { success: false, processedCount: 0, message: "API key WhatsApp Gateway belum dikonfigurasi di Pengaturan." };
   }
 
-  // 2. Fetch Active Client Drips that are due
+  // 1.5. Check daily limit of 10 messages sent today
+  const todayStart = new Date();
+  todayStart.setUTCHours(0, 0, 0, 0);
+  const { count: sentToday } = await supabase
+    .from('wa_broadcast_items')
+    .select('id', { count: 'exact', head: true })
+    .gte('sent_at', todayStart.toISOString())
+    .eq('status', 'sent');
+
+  if ((sentToday || 0) >= 10) {
+    return { success: false, processedCount: 0, message: "Batas harian pengiriman WhatsApp (maksimal 10 pesan per hari) sudah tercapai hari ini." };
+  }
+
+  // 2. Fetch ONLY 1 single active client drip with the nearest schedule
   const nowIso = new Date().toISOString()
-  const { data: dueDrips, error: dueDripsErr } = await supabase
+  let { data: dueDrips, error: dueDripsErr } = await supabase
     .from('wa_client_drips')
     .select('*')
     .eq('status', 'active')
     .lte('next_scheduled_at', nowIso)
+    .order('next_scheduled_at', { ascending: true })
+    .limit(1)
 
   if (dueDripsErr) throw dueDripsErr
 
-  // Check daily limit of 10 messages sent today
-  const todayStart = new Date()
-  todayStart.setUTCHours(0,0,0,0)
-  const { count: sentToday, error: countErr } = await supabase
-    .from('wa_broadcast_items')
-    .select('id', { count: 'exact', head: true })
-    .gte('sent_at', todayStart.toISOString())
-    .eq('status', 'sent')
+  // If no drip is past due date, pick the nearest upcoming active drip when triggered manually
+  if (!dueDrips || dueDrips.length === 0) {
+    const { data: nearestDrips } = await supabase
+      .from('wa_client_drips')
+      .select('*')
+      .eq('status', 'active')
+      .order('next_scheduled_at', { ascending: true })
+      .limit(1)
 
-  if (countErr) throw countErr
-  
-  const maxAllowed = 10 - (sentToday || 0)
-  if (maxAllowed <= 0) {
-    return { processedCount: 0, message: "Batas harian pengiriman (10 pesan) sudah tercapai hari ini." }
+    dueDrips = nearestDrips || []
   }
 
-  // Slice dueDrips to maxAllowed
-  const dripsToProcess = dueDrips.slice(0, maxAllowed)
+  if (!dueDrips || dueDrips.length === 0) {
+    return { success: true, processedCount: 0, message: "Tidak ada antrean Proses Sapa yang aktif saat ini." }
+  }
 
-  const results = []
+  const drip = dueDrips[0]
+  let success = false
+  let responseStatus = 500
+  let responseText = ""
+  let clientNameStr = drip.client_name
 
-  if (dripsToProcess && dripsToProcess.length > 0) {
-    for (const drip of dripsToProcess) {
+  try {
+    // Fetch current step details
+    const { data: step, error: stepErr } = await supabase
+      .from('wa_drip_steps')
+      .select('*, wa_templates(*)')
+      .eq('drip_sequence_id', drip.drip_sequence_id)
+      .eq('step_number', drip.current_step_number)
+      .single()
+
+    if (stepErr || !step) {
+      await supabase
+        .from('wa_client_drips')
+        .update({ status: 'completed', updated_at: new Date().toISOString() })
+        .eq('id', drip.id)
+      return { success: true, processedCount: 0, message: `Proses Sapa untuk ${drip.client_name} telah selesai.` }
+    }
+
+    const templateContent = step.wa_templates?.content || step.custom_message || ""
+    if (!templateContent) {
+      await supabase
+        .from('wa_client_drips')
+        .update({ 
+          status: 'paused', 
+          stop_reason: `Template untuk Tahap ${drip.current_step_number} belum dikonfigurasi.`, 
+          updated_at: new Date().toISOString() 
+        })
+        .eq('id', drip.id)
+      return { success: false, processedCount: 0, message: `Template untuk Tahap ${drip.current_step_number} belum dikonfigurasi.` }
+    }
+
+    // Fetch latest Client fields to merge template
+    const { data: client, error: clientErr } = await supabase
+      .from('clients')
+      .select('*')
+      .eq('id', drip.client_id)
+      .single()
+
+    if (clientErr || !client) {
+      await supabase
+        .from('wa_client_drips')
+        .update({ status: 'paused', stop_reason: 'Client tidak ditemukan di CRM', updated_at: new Date().toISOString() })
+        .eq('id', drip.id)
+      return { success: false, processedCount: 0, message: `Client ${drip.client_name} tidak ditemukan di CRM.` }
+    }
+
+    clientNameStr = client.nama || client.name || drip.client_name
+
+    // Render template content helper
+    const salutation = client.sapaan || client.salutation || settings.default_salutation || "Bapak/Ibu"
+    const name = client.nama || client.name || "Bapak/Ibu"
+    const nickname = client.panggilan || client.nickname || name
+    const school = client.sekolah || client.school || "Sekolah"
+    const position = client.posisi || client.position || "Pengurus"
+    const email = client.email || ""
+
+    const renderedMessage = templateContent
+      .replace(/\{\{\s*salutation\s*\}\}/gi, salutation)
+      .replace(/\{\{\s*sapaan\s*\}\}/gi, salutation)
+      .replace(/\{\{\s*name\s*\}\}/gi, name)
+      .replace(/\{\{\s*nama\s*\}\}/gi, name)
+      .replace(/\{\{\s*nickname\s*\}\}/gi, nickname)
+      .replace(/\{\{\s*panggilan\s*\}\}/gi, nickname)
+      .replace(/\{\{\s*school\s*\}\}/gi, school)
+      .replace(/\{\{\s*sekolah\s*\}\}/gi, school)
+      .replace(/\{\{\s*position\s*\}\}/gi, position)
+      .replace(/\{\{\s*posisi\s*\}\}/gi, position)
+      .replace(/\{\{\s*email\s*\}\}/gi, email);
+
+    // Format phone
+    let cleaned = drip.phone.replace(/\D/g, "")
+    if (cleaned.startsWith("0")) {
+      cleaned = "62" + cleaned.substring(1)
+    } else if (cleaned.startsWith("8")) {
+      cleaned = "62" + cleaned
+    }
+    const targetPhone = cleaned
+
+    // Dispatch HTTP request to Third Party Gateway (Fonnte/Wablas/etc)
+    const gatewayName = settings.third_party_name || "Fonnte"
+    const apiKey = settings.third_party_api_key
+
+    if (gatewayName === "Fonnte") {
+      const formData = new URLSearchParams()
+      formData.append("target", targetPhone)
+      formData.append("message", renderedMessage)
+
+      const apiRes = await fetch("https://api.fonnte.com/send", {
+        method: "POST",
+        headers: {
+          "Authorization": apiKey,
+          "Content-Type": "application/x-www-form-urlencoded"
+        },
+        body: formData
+      })
+      responseStatus = apiRes.status
+      responseText = await apiRes.text()
       try {
-        // Fetch current step details
-        const { data: step, error: stepErr } = await supabase
-          .from('wa_drip_steps')
-          .select('*, wa_templates(*)')
-          .eq('drip_sequence_id', drip.drip_sequence_id)
-          .eq('step_number', drip.current_step_number)
-          .single()
+        const fonnteJson = JSON.parse(responseText);
+        success = apiRes.ok && (fonnteJson.status === true || fonnteJson.status === "true" || !!fonnteJson.id);
+      } catch {
+        success = apiRes.ok && (responseText.includes('"status":true') || responseText.includes('"status": true'));
+      }
+    } else if (gatewayName === "Wablas") {
+      const apiRes = await fetch("https://api.wablas.com/api/send-message", {
+        method: "POST",
+        headers: {
+          "Authorization": apiKey,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          phone: targetPhone,
+          message: renderedMessage
+        })
+      })
+      responseStatus = apiRes.status
+      responseText = await apiRes.text()
+      success = apiRes.ok
+    } else if (gatewayName === "Dripsender") {
+      const endpoint = settings.third_party_endpoint || "https://api.dripsender.id/send-data"
+      const apiRes = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          api_key: apiKey,
+          phone: targetPhone,
+          message: renderedMessage
+        })
+      })
+      responseStatus = apiRes.status
+      responseText = await apiRes.text()
+      success = apiRes.ok
+    } else {
+      const endpoint = settings.third_party_endpoint || "https://api.fonnte.com/send"
+      const apiRes = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          to: targetPhone,
+          target: targetPhone,
+          message: renderedMessage
+        })
+      })
+      responseStatus = apiRes.status
+      responseText = await apiRes.text()
+      success = apiRes.ok
+    }
 
-        if (stepErr || !step) {
-          await supabase
-            .from('wa_client_drips')
-            .update({ status: 'completed', updated_at: new Date().toISOString() })
-            .eq('id', drip.id)
-          continue
-        }
+    // Save dispatch logs in wa_broadcast_items
+    await supabase
+      .from('wa_broadcast_items')
+      .insert({
+        client_id: drip.client_id,
+        client_name: clientNameStr,
+        school_name: drip.school_name,
+        phone: drip.phone,
+        rendered_message: renderedMessage,
+        status: success ? 'sent' : 'failed',
+        sent_at: new Date().toISOString(),
+        error_message: success ? null : `HTTP ${responseStatus}: ${responseText}`
+      })
 
-        const templateContent = step.wa_templates?.content || step.custom_message || ""
-        if (!templateContent) {
-          await supabase
-            .from('wa_client_drips')
-            .update({ 
-              status: 'paused', 
-              stop_reason: `Template untuk Tahap ${drip.current_step_number} belum dikonfigurasi.`, 
-              updated_at: new Date().toISOString() 
-            })
-            .eq('id', drip.id)
-          continue
-        }
+    if (success) {
+      // Update client last activity in CRM
+      await supabase
+        .from('clients')
+        .update({
+          lastActivityDesc: `Proses Sapa Tahap ${drip.current_step_number} terkirim`,
+          lastActivityAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        })
+        .eq('id', drip.client_id)
 
-        // Fetch latest Client fields to merge template
-        const { data: client, error: clientErr } = await supabase
-          .from('clients')
-          .select('*')
-          .eq('id', drip.client_id)
-          .single()
+      const nextStepNum = drip.current_step_number + 1
+      const { data: nextStep } = await supabase
+        .from('wa_drip_steps')
+        .select('id, delay_days, template_id')
+        .eq('drip_sequence_id', drip.drip_sequence_id)
+        .eq('step_number', nextStepNum)
+        .maybeSingle()
 
-        if (clientErr || !client) {
-          await supabase
-            .from('wa_client_drips')
-            .update({ status: 'paused', stop_reason: 'Client tidak ditemukan di CRM', updated_at: new Date().toISOString() })
-            .eq('id', drip.id)
-          continue
-        }
+      if (nextStep && nextStep.template_id) {
+        const delayDays = nextStep.delay_days || 1
+        const nextScheduleDate = new Date()
+        nextScheduleDate.setDate(nextScheduleDate.getDate() + delayDays)
 
-        // Render template content helper
-        const salutation = client.sapaan || client.salutation || settings.default_salutation || "Bapak/Ibu"
-        const name = client.nama || client.name || "Bapak/Ibu"
-        const nickname = client.panggilan || client.nickname || name
-        const school = client.sekolah || client.school || "Sekolah"
-        const position = client.posisi || client.position || "Pengurus"
-        const email = client.email || ""
-
-        const renderedMessage = templateContent
-          .replace(/\{\{\s*salutation\s*\}\}/gi, salutation)
-          .replace(/\{\{\s*sapaan\s*\}\}/gi, salutation)
-          .replace(/\{\{\s*name\s*\}\}/gi, name)
-          .replace(/\{\{\s*nama\s*\}\}/gi, name)
-          .replace(/\{\{\s*nickname\s*\}\}/gi, nickname)
-          .replace(/\{\{\s*panggilan\s*\}\}/gi, nickname)
-          .replace(/\{\{\s*school\s*\}\}/gi, school)
-          .replace(/\{\{\s*sekolah\s*\}\}/gi, school)
-          .replace(/\{\{\s*position\s*\}\}/gi, position)
-          .replace(/\{\{\s*posisi\s*\}\}/gi, position)
-          .replace(/\{\{\s*email\s*\}\}/gi, email);
-
-        // Format phone
-        let cleaned = drip.phone.replace(/\D/g, "")
-        if (cleaned.startsWith("0")) {
-          cleaned = "62" + cleaned.substring(1)
-        } else if (cleaned.startsWith("8")) {
-          cleaned = "62" + cleaned
-        }
-        const targetPhone = cleaned
-
-        // Dispatch HTTP request to Third Party Gateway (Fonnte/Wablas/etc)
-        let responseStatus = 500
-        let responseText = ""
-        let success = false
-
-        const gatewayName = settings.third_party_name || "Fonnte"
-        const apiKey = settings.third_party_api_key
-
-        if (gatewayName === "Fonnte") {
-          const formData = new URLSearchParams()
-          formData.append("target", targetPhone)
-          formData.append("message", renderedMessage)
-
-          const apiRes = await fetch("https://api.fonnte.com/send", {
-            method: "POST",
-            headers: {
-              "Authorization": apiKey,
-              "Content-Type": "application/x-www-form-urlencoded"
-            },
-            body: formData
-          })
-          responseStatus = apiRes.status
-          responseText = await apiRes.text()
-          success = apiRes.ok && responseText.includes('"status":true')
-        } else if (gatewayName === "Wablas") {
-          const apiRes = await fetch("https://api.wablas.com/api/send-message", {
-            method: "POST",
-            headers: {
-              "Authorization": apiKey,
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-              phone: targetPhone,
-              message: renderedMessage
-            })
-          })
-          responseStatus = apiRes.status
-          responseText = await apiRes.text()
-          success = apiRes.ok
-        } else if (gatewayName === "Dripsender") {
-          const endpoint = settings.third_party_endpoint || "https://api.dripsender.id/send-data"
-          const apiRes = await fetch(endpoint, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-              api_key: apiKey,
-              phone: targetPhone,
-              message: renderedMessage
-            })
-          })
-          responseStatus = apiRes.status
-          responseText = await apiRes.text()
-          success = apiRes.ok
-        } else {
-          const endpoint = settings.third_party_endpoint || "https://api.fonnte.com/send"
-          const apiRes = await fetch(endpoint, {
-            method: "POST",
-            headers: {
-              "Authorization": apiKey,
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-              to: targetPhone,
-              target: targetPhone,
-              message: renderedMessage
-            })
-          })
-          responseStatus = apiRes.status
-          responseText = await apiRes.text()
-          success = apiRes.ok
-        }
-
-        // Save dispatch logs in wa_broadcast_items
         await supabase
-          .from('wa_broadcast_items')
-          .insert({
-            client_id: drip.client_id,
-            client_name: drip.client_name,
-            school_name: drip.school_name,
-            phone: drip.phone,
-            rendered_message: renderedMessage,
-            status: success ? 'sent' : 'failed',
-            sent_at: new Date().toISOString(),
-            error_message: success ? null : `HTTP ${responseStatus}: ${responseText}`
+          .from('wa_client_drips')
+          .update({
+            current_step_number: nextStepNum,
+            next_scheduled_at: nextScheduleDate.toISOString(),
+            last_sent_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
           })
+          .eq('id', drip.id)
+      } else {
+        await supabase
+          .from('wa_client_drips')
+          .update({
+            status: 'completed',
+            last_sent_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', drip.id)
 
-        if (success) {
-          // Update client last activity in CRM
-          await supabase
-            .from('clients')
-            .update({
-              lastActivityDesc: `Proses Sapa Tahap ${drip.current_step_number} terkirim`,
-              lastActivityAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString()
-            })
-            .eq('id', drip.client_id)
+        // Update client status in CRM to COLD
+        await supabase
+          .from('clients')
+          .update({
+            status: 'COLD',
+            proses: 'COLD',
+            lastActivityDesc: 'Proses Sapa selesai tanpa balasan',
+            lastActivityAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          })
+          .eq('id', drip.client_id)
 
-          const nextStepNum = drip.current_step_number + 1
-          const { data: nextStep } = await supabase
-            .from('wa_drip_steps')
-            .select('id, delay_days, template_id')
-            .eq('drip_sequence_id', drip.drip_sequence_id)
-            .eq('step_number', nextStepNum)
-            .maybeSingle()
+        // Log to daily_activities
+        await supabase
+          .from('daily_activities')
+          .insert({
+            userId: 'system',
+            userName: 'System (WhatsApp dispatcher)',
+            date: new Date().toISOString().split('T')[0],
+            text: `Proses Sapa selesai tanpa balasan untuk client ${clientNameStr} (CRM otomatis status COLD)`,
+            extraInfo: `Selesai setelah Tahap ${drip.current_step_number}`,
+            type: 'auto',
+            refId: drip.client_id,
+            refType: 'Client',
+            category: 'WhatsApp',
+            isDone: true,
+            createdAt: new Date().toISOString()
+          })
+      }
 
-          if (nextStep && nextStep.template_id) {
-            const delayDays = nextStep.delay_days || 1
-            const nextScheduleDate = new Date()
-            nextScheduleDate.setDate(nextScheduleDate.getDate() + delayDays)
-
-            await supabase
-              .from('wa_client_drips')
-              .update({
-                current_step_number: nextStepNum,
-                next_scheduled_at: nextScheduleDate.toISOString(),
-                last_sent_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-              })
-              .eq('id', drip.id)
-          } else {
-            await supabase
-              .from('wa_client_drips')
-              .update({
-                status: 'completed',
-                last_sent_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-              })
-              .eq('id', drip.id)
-
-            // 1. Update client status in CRM to COLD
-            await supabase
-              .from('clients')
-              .update({
-                status: 'COLD',
-                proses: 'COLD',
-                lastActivityDesc: 'Proses Sapa selesai tanpa balasan',
-                lastActivityAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString()
-              })
-              .eq('id', drip.client_id)
-
-            // 2. Log to daily_activities
-            await supabase
-              .from('daily_activities')
-              .insert({
-                userId: 'system',
-                userName: 'System (WhatsApp dispatcher)',
-                date: new Date().toISOString().split('T')[0],
-                text: `Proses Sapa selesai tanpa balasan untuk client ${drip.client_name} (CRM otomatis status COLD)`,
-                extraInfo: `Selesai setelah Tahap ${drip.current_step_number}`,
-                type: 'auto',
-                refId: drip.client_id,
-                refType: 'Client',
-                category: 'WhatsApp',
-                isDone: true,
-                createdAt: new Date().toISOString()
-              })
-          }
-        }
-
-        results.push({ clientId: drip.client_id, success, status: responseStatus })
-
-      } catch (itemErr: any) {
-        results.push({ dripId: drip.id, error: itemErr.message })
+      return {
+        success: true,
+        processedCount: 1,
+        clientName: clientNameStr,
+        stepNumber: drip.current_step_number,
+        message: `Berhasil mengirim Proses Sapa Tahap ${drip.current_step_number} untuk ${clientNameStr}.`
+      }
+    } else {
+      return {
+        success: false,
+        processedCount: 0,
+        clientName: clientNameStr,
+        message: `Gagal mengirim ke ${clientNameStr} (HTTP ${responseStatus}): ${responseText}`
       }
     }
-  }
 
-  return { processedCount: results.length, details: results }
+  } catch (itemErr: any) {
+    return {
+      success: false,
+      processedCount: 0,
+      message: `Error memproses antrean untuk ${clientNameStr}: ${itemErr.message}`
+    }
+  }
 }

@@ -74,13 +74,31 @@ serve(async (req) => {
       })
     }
 
-    // 2. Fetch Active Client Drips that are due
+    // 1.5. Check daily limit of 10 messages sent today
+    const todayStart = new Date();
+    todayStart.setUTCHours(0, 0, 0, 0);
+    const { count: sentToday } = await supabase
+      .from('wa_broadcast_items')
+      .select('id', { count: 'exact', head: true })
+      .gte('sent_at', todayStart.toISOString())
+      .eq('status', 'sent');
+
+    if ((sentToday || 0) >= 10) {
+      return new Response(JSON.stringify({ message: "Batas harian pengiriman WhatsApp (10 pesan per hari) sudah tercapai." }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
+    }
+
+    // 2. Fetch single active Client Drip with nearest schedule
     const nowIso = new Date().toISOString()
     const { data: dueDrips, error: dueDripsErr } = await supabase
       .from('wa_client_drips')
       .select('*')
       .eq('status', 'active')
       .lte('next_scheduled_at', nowIso)
+      .order('next_scheduled_at', { ascending: true })
+      .limit(1)
 
     if (dueDripsErr) throw dueDripsErr
 
@@ -158,7 +176,12 @@ serve(async (req) => {
             })
             responseStatus = apiRes.status
             responseText = await apiRes.text()
-            success = apiRes.ok && responseText.includes('"status":true')
+            try {
+              const fonnteJson = JSON.parse(responseText);
+              success = apiRes.ok && (fonnteJson.status === true || fonnteJson.status === "true" || !!fonnteJson.id);
+            } catch {
+              success = apiRes.ok && (responseText.includes('"status":true') || responseText.includes('"status": true'));
+            }
           } else if (gatewayName === "Wablas") {
             const apiRes = await fetch("https://api.wablas.com/api/send-message", {
               method: "POST",

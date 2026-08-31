@@ -32,31 +32,25 @@ serve(async (req) => {
     let messageBody = "";
     let rawPayload: any = {};
 
-    const contentType = req.headers.get("content-type") || "";
-    if (contentType.includes("application/json")) {
-      const body = await req.json();
-      fromPhone = body.sender || body.from || body.phone || body.target || body.wa_number || "";
-      messageBody = body.message || body.msg || body.text || body.body || "";
-      rawPayload = body;
-    } else {
+    const rawText = await req.text();
+    if (rawText) {
       try {
-        const formData = await req.formData();
-        fromPhone = formData.get("sender")?.toString() || formData.get("from")?.toString() || formData.get("phone")?.toString() || formData.get("target")?.toString() || "";
-        messageBody = formData.get("message")?.toString() || formData.get("msg")?.toString() || formData.get("text")?.toString() || "";
-        const obj: any = {};
-        for (const [key, value] of formData.entries()) {
-          obj[key] = value;
-        }
-        rawPayload = obj;
-      } catch (e) {
-        const text = await req.text();
+        // 1. Try parsing JSON
+        const body = JSON.parse(rawText);
+        fromPhone = body.sender || body.from || body.phone || body.target || body.wa_number || body.data?.sender || body.data?.from || "";
+        messageBody = body.message || body.msg || body.text || body.body || body.data?.message || "";
+        rawPayload = body;
+      } catch {
+        // 2. Try parsing URLSearchParams (form-urlencoded)
         try {
-          const body = JSON.parse(text);
-          fromPhone = body.sender || body.from || body.phone || body.target || "";
-          messageBody = body.message || body.msg || body.text || "";
-          rawPayload = body;
+          const params = new URLSearchParams(rawText);
+          fromPhone = params.get("sender") || params.get("from") || params.get("phone") || params.get("target") || "";
+          messageBody = params.get("message") || params.get("msg") || params.get("text") || "";
+          const obj: any = {};
+          params.forEach((v, k) => { obj[k] = v; });
+          rawPayload = obj;
         } catch {
-          rawPayload = { raw: text };
+          rawPayload = { raw: rawText };
         }
       }
     }
@@ -97,7 +91,11 @@ serve(async (req) => {
     const matchingDrip = activeDrips?.find(d => {
       const p1 = formatPhone(d.phone);
       const p2 = formattedFrom;
-      return p1 === p2 || (p1.length >= 8 && p2.length >= 8 && p1.slice(-9) === p2.slice(-9));
+      if (!p1 || !p2) return false;
+      if (p1 === p2) return true;
+      const s1 = p1.length >= 8 ? p1.slice(-8) : p1;
+      const s2 = p2.length >= 8 ? p2.slice(-8) : p2;
+      return s1 === s2;
     })
 
     if (matchingDrip) {

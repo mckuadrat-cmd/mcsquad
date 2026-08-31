@@ -39,7 +39,7 @@ const Broadcast = () => {
   const handleRunDispatcher = async () => {
     if (isDispatching) return;
     setIsDispatching(true);
-    showToast('Memproses antrean pengiriman WhatsApp...', 'info');
+    showToast('Memproses antrean WhatsApp terdekat...', 'info');
     try {
       const { data, error } = await invokeApi('/wa-dispatch', { method: 'POST' });
       if (error) {
@@ -47,10 +47,10 @@ const Broadcast = () => {
         return;
       }
       if (data && data.success) {
-        showToast(`Berhasil mengirim ${data.processedCount || 0} pesan!`, 'success');
+        showToast(data.message || 'Berhasil memproses antrean WhatsApp terdekat!', 'success');
         refreshBroadcastData();
       } else {
-        showAlert('Gagal', data?.error || 'Terjadi kesalahan saat memproses antrean.', 'error');
+        showAlert('Informasi Dispatcher', data?.message || data?.error || 'Terjadi kesalahan saat memproses antrean.', 'info');
       }
     } catch (err) {
       console.error('Trigger dispatcher error:', err);
@@ -384,17 +384,17 @@ const Broadcast = () => {
               </div>
             ) : (
               <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px', whiteSpace: 'nowrap' }}>
                   <thead>
-                    <tr style={{ borderBottom: '1px solid var(--border)', textAlign: 'left', color: 'var(--text-secondary)' }}>
-                      <th style={{ padding: '12px' }}>Nama Client</th>
-                      <th style={{ padding: '12px' }}>Sekolah</th>
-                      <th style={{ padding: '12px' }}>No WhatsApp</th>
-                      <th style={{ padding: '12px' }}>Tahap Saat Ini</th>
-                      <th style={{ padding: '12px' }}>Jadwal Berikutnya</th>
-                      <th style={{ padding: '12px' }}>Diproses Oleh</th>
-                      <th style={{ padding: '12px' }}>Status</th>
-                      <th style={{ padding: '12px', textAlign: 'center' }}>Aksi</th>
+                    <tr style={{ borderBottom: '1px solid var(--border)', textAlign: 'left', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                      <th style={{ padding: '12px', minWidth: '180px', maxWidth: '240px', whiteSpace: 'nowrap' }}>Nama Client</th>
+                      <th style={{ padding: '12px', minWidth: '160px', maxWidth: '220px', whiteSpace: 'nowrap' }}>Sekolah</th>
+                      <th style={{ padding: '12px', minWidth: '140px', whiteSpace: 'nowrap' }}>No WhatsApp</th>
+                      <th style={{ padding: '12px', minWidth: '130px', whiteSpace: 'nowrap' }}>Tahap Saat Ini</th>
+                      <th style={{ padding: '12px', minWidth: '150px', whiteSpace: 'nowrap' }}>Jadwal Berikutnya</th>
+                      <th style={{ padding: '12px', minWidth: '130px', whiteSpace: 'nowrap' }}>Diproses Oleh</th>
+                      <th style={{ padding: '12px', minWidth: '120px', whiteSpace: 'nowrap' }}>Status</th>
+                      <th style={{ padding: '12px', textAlign: 'center', minWidth: '120px', whiteSpace: 'nowrap' }}>Aksi</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -402,29 +402,53 @@ const Broadcast = () => {
                       const isCreator = cd.created_by === currentUser?.email;
                       const canManage = isAdminOrOwner || isCreator;
                       return (
-                        <tr key={cd.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                          <td style={{ padding: '12px', fontWeight: 600 }}>{cd.client_name}</td>
-                          <td style={{ padding: '12px' }}>{cd.school_name || '-'}</td>
-                          <td style={{ padding: '12px' }}>{cd.phone}</td>
-                          <td style={{ padding: '12px' }}>
-                            <span style={{ fontWeight: 600, color: 'var(--primary)' }}>
+                        <tr key={cd.id} style={{ borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' }}>
+                          <td style={{ padding: '12px', fontWeight: 600, maxWidth: '240px', minWidth: '180px', whiteSpace: 'nowrap' }}>
+                            <div
+                              style={{
+                                maxWidth: '220px',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap'
+                              }}
+                              title={cd.client_name}
+                            >
+                              {cd.client_name}
+                            </div>
+                          </td>
+                          <td style={{ padding: '12px', maxWidth: '220px', minWidth: '160px', whiteSpace: 'nowrap' }}>
+                            <div
+                              style={{
+                                maxWidth: '200px',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap'
+                              }}
+                              title={cd.school_name || '-'}
+                            >
+                              {cd.school_name || '-'}
+                            </div>
+                          </td>
+                          <td style={{ padding: '12px', minWidth: '140px', whiteSpace: 'nowrap' }}>{cd.phone}</td>
+                          <td style={{ padding: '12px', minWidth: '130px', whiteSpace: 'nowrap' }}>
+                            <span style={{ fontWeight: 600, color: 'var(--primary)', whiteSpace: 'nowrap' }}>
                               ⚡ Tahap {cd.current_step_number}
                             </span>
                           </td>
-                          <td style={{ padding: '12px', fontSize: '14px' }}>
+                          <td style={{ padding: '12px', fontSize: '14px', minWidth: '150px', whiteSpace: 'nowrap' }}>
                             {cd.status === 'active' && cd.next_scheduled_at
                               ? new Date(cd.next_scheduled_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
                               : '-'
                             }
                           </td>
-                          <td style={{ padding: '12px', fontSize: '13px', color: 'var(--text-secondary)' }}>
+                          <td style={{ padding: '12px', fontSize: '13px', color: 'var(--text-secondary)', minWidth: '130px', whiteSpace: 'nowrap' }}>
                             {(() => {
                               if (!cd.created_by) return 'System';
                               const match = users.find(u => u.email === cd.created_by);
                               return match ? (match.nickname || match.name) : cd.created_by.split('@')[0];
                             })()}
                           </td>
-                          <td style={{ padding: '12px' }}>
+                          <td style={{ padding: '12px', minWidth: '120px', whiteSpace: 'nowrap' }}>
                             {(() => {
                               let label = 'Aktif';
                               let bg = '#E5F6EB';
@@ -458,7 +482,8 @@ const Broadcast = () => {
                                     fontWeight: 600,
                                     backgroundColor: bg,
                                     color: color,
-                                    display: 'inline-block'
+                                    display: 'inline-block',
+                                    whiteSpace: 'nowrap'
                                   }}
                                 >
                                   {label}

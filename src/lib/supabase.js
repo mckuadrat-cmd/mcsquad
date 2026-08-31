@@ -82,7 +82,7 @@ export const invokeApi = async (path, options = {}) => {
   const tableName = urlPath.replace('/', '');
 
   // 1. Direct PostgREST fast-path for standard database tables (Instant <50ms response, 0 cold starts)
-  const knownTables = ['clients', 'leads', 'projects', 'profiles', 'daily_activities', 'calendar_events', 'wa_settings', 'wa_templates', 'wa_broadcasts', 'wa_client_drips', 'wa_inbound_logs', 'event_reports', 'generated_documents'];
+  const knownTables = ['clients', 'leads', 'projects', 'profiles', 'daily_activities', 'calendar_events', 'wa_settings', 'wa_templates', 'wa_drip_steps', 'wa_drip_sequences', 'wa_broadcasts', 'wa_broadcast_items', 'wa_client_drips', 'wa_inbound_logs', 'event_reports', 'generated_documents', 'messages', 'user_notifications', 'document_templates', 'settings'];
 
   if (knownTables.includes(tableName)) {
     try {

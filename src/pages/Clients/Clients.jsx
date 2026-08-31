@@ -173,12 +173,18 @@ const Clients = () => {
   };
 
   const handleConfirmStartSapa = async () => {
-    for (const c of sapaTargetClients) {
-      await startClientDrip(c);
+    const limitedTargets = sapaTargetClients.slice(0, 10);
+    if (sapaTargetClients.length > 10) {
+      showToast('Batas maksimal 10 client per hari. Hanya 10 client pertama yang diproses.', 'info');
+    }
+    let index = 0;
+    for (const c of limitedTargets) {
+      await startClientDrip(c, null, index * 30);
+      index++;
     }
     setIsSapaModalOpen(false);
     setSelectedClientIds([]);
-    showToast(`Berhasil memasukkan ${sapaTargetClients.length} client ke Proses Sapa!`, 'success');
+    showToast(`Berhasil memasukkan ${limitedTargets.length} client ke Proses Sapa (Client 1: +15 mnt, jeda berikutnya: +30 mnt per client)!`, 'success');
   };
 
   const handleOpenAdd = () => {
@@ -671,10 +677,10 @@ const Clients = () => {
           )}
 
           <div style={{ overflowX: 'auto', minHeight: '400px' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', whiteSpace: 'nowrap' }}>
               <thead>
-                <tr style={{ backgroundColor: '#F8F9FB', color: 'var(--text-secondary)', fontSize: '14px', textTransform: 'uppercase' }}>
-                  <th style={{ padding: '16px 16px 16px 24px', width: '40px' }}>
+                <tr style={{ backgroundColor: '#F8F9FB', color: 'var(--text-secondary)', fontSize: '14px', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
+                  <th style={{ padding: '16px 16px 16px 24px', width: '40px', minWidth: '40px' }}>
                     <input
                       type="checkbox"
                       checked={selectedClientIds.length === paginatedClients.length && paginatedClients.length > 0}
@@ -682,15 +688,15 @@ const Clients = () => {
                       style={{ cursor: 'pointer', width: '16px', height: '16px' }}
                     />
                   </th>
-                  <th style={{ padding: '16px 20px', fontWeight: 600 }}>Nama Client</th>
-                  <th style={{ padding: '16px 20px', fontWeight: 600 }}>Sekolah</th>
-                  <th style={{ padding: '16px 20px', fontWeight: 600 }}>Kontak</th>
-                  <th style={{ padding: '16px 20px', fontWeight: 600 }}>Status</th>
-                  <th style={{ padding: '16px 20px', fontWeight: 600 }}>Proses</th>
-                  <th style={{ padding: '16px 20px', fontWeight: 600 }}>Status Sapa</th>
-                  <th style={{ padding: '16px 20px', fontWeight: 600 }}>Aktivitas Terakhir</th>
-                  <th style={{ padding: '16px 20px', fontWeight: 600 }}>AO</th>
-                  <th style={{ padding: '16px 20px', fontWeight: 600, textAlign: 'center' }}>Aksi</th>
+                  <th style={{ padding: '16px 20px', fontWeight: 600, minWidth: '180px', maxWidth: '240px', whiteSpace: 'nowrap' }}>Nama Client</th>
+                  <th style={{ padding: '16px 20px', fontWeight: 600, minWidth: '160px', maxWidth: '220px', whiteSpace: 'nowrap' }}>Sekolah</th>
+                  <th style={{ padding: '16px 20px', fontWeight: 600, minWidth: '160px', maxWidth: '220px', whiteSpace: 'nowrap' }}>Kontak</th>
+                  <th style={{ padding: '16px 20px', fontWeight: 600, minWidth: '120px', whiteSpace: 'nowrap' }}>Status</th>
+                  <th style={{ padding: '16px 20px', fontWeight: 600, minWidth: '140px', whiteSpace: 'nowrap' }}>Proses</th>
+                  <th style={{ padding: '16px 20px', fontWeight: 600, minWidth: '150px', whiteSpace: 'nowrap' }}>Status Sapa</th>
+                  <th style={{ padding: '16px 20px', fontWeight: 600, minWidth: '180px', maxWidth: '220px', whiteSpace: 'nowrap' }}>Aktivitas Terakhir</th>
+                  <th style={{ padding: '16px 20px', fontWeight: 600, minWidth: '120px', whiteSpace: 'nowrap' }}>AO</th>
+                  <th style={{ padding: '16px 20px', fontWeight: 600, textAlign: 'center', minWidth: '140px', whiteSpace: 'nowrap' }}>Aksi</th>
                 </tr>
               </thead>
               <tbody>
@@ -704,8 +710,8 @@ const Clients = () => {
                   const isChecked = selectedClientIds.includes(client.id);
 
                   return (
-                    <tr key={client.id} style={{ borderBottom: idx === paginatedClients.length - 1 ? 'none' : '1px solid var(--border)', backgroundColor: isChecked ? '#FFFDF5' : 'transparent' }} className="hover:bg-gray-50">
-                      <td style={{ padding: '16px 16px 16px 24px' }}>
+                    <tr key={client.id} style={{ borderBottom: idx === paginatedClients.length - 1 ? 'none' : '1px solid var(--border)', backgroundColor: isChecked ? '#FFFDF5' : 'transparent', whiteSpace: 'nowrap' }} className="hover:bg-gray-50">
+                      <td style={{ padding: '16px 16px 16px 24px', width: '40px', minWidth: '40px' }}>
                         <input
                           type="checkbox"
                           checked={isChecked}
@@ -713,24 +719,89 @@ const Clients = () => {
                           style={{ cursor: 'pointer', width: '16px', height: '16px' }}
                         />
                       </td>
-                      <td style={{ padding: '16px 20px' }}>
-                        <p style={{ fontWeight: 600, margin: 0 }}>
-                          {client.sapaan || client.salutation} {client.nama || client.name}
-                        </p>
-                        <p style={{ fontSize: '14px', color: 'var(--text-secondary)', margin: 0 }}>{client.posisi || client.position}
-                          {(client.panggilan || client.nickname) && <span style={{ marginLeft: '6px', color: 'var(--text-secondary)', fontWeight: 400 }}>({client.panggilan || client.nickname})</span>}
-                        </p>
+                      <td style={{ padding: '16px 20px', maxWidth: '240px', minWidth: '180px', whiteSpace: 'nowrap' }}>
+                        <div style={{ maxWidth: '220px' }}>
+                          <p
+                            style={{
+                              fontWeight: 600,
+                              margin: 0,
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis'
+                            }}
+                            title={`${client.sapaan || client.salutation || ''} ${client.nama || client.name || ''}`.trim()}
+                          >
+                            {client.sapaan || client.salutation} {client.nama || client.name}
+                          </p>
+                          <p
+                            style={{
+                              fontSize: '14px',
+                              color: 'var(--text-secondary)',
+                              margin: 0,
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis'
+                            }}
+                            title={`${client.posisi || client.position || ''} ${(client.panggilan || client.nickname) ? `(${client.panggilan || client.nickname})` : ''}`.trim()}
+                          >
+                            {client.posisi || client.position}
+                            {(client.panggilan || client.nickname) && (
+                              <span style={{ marginLeft: '6px', color: 'var(--text-secondary)', fontWeight: 400 }}>
+                                ({client.panggilan || client.nickname})
+                              </span>
+                            )}
+                          </p>
+                        </div>
                       </td>
-                      <td style={{ padding: '16px 20px' }}>
-                        <span onClick={() => navigate(`/clients/dashboard/${client.sekolah || client.school}`)} style={{ color: 'var(--primary)', cursor: 'pointer', fontWeight: 600 }} className="hover:underline">
+                      <td style={{ padding: '16px 20px', maxWidth: '220px', minWidth: '160px', whiteSpace: 'nowrap' }}>
+                        <span
+                          onClick={() => navigate(`/clients/dashboard/${client.sekolah || client.school}`)}
+                          style={{
+                            color: 'var(--primary)',
+                            cursor: 'pointer',
+                            fontWeight: 600,
+                            display: 'block',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            maxWidth: '200px'
+                          }}
+                          className="hover:underline"
+                          title={client.sekolah || client.school}
+                        >
                           {client.sekolah || client.school}
                         </span>
                       </td>
-                      <td style={{ padding: '16px 20px' }}>
-                        <p style={{ margin: 0, fontSize: '14px' }}>{client.whatsapp || client.phone}</p>
-                        <p style={{ margin: 0, fontSize: '14px', color: 'var(--text-secondary)' }}>{client.email}</p>
+                      <td style={{ padding: '16px 20px', maxWidth: '220px', minWidth: '160px', whiteSpace: 'nowrap' }}>
+                        <div style={{ maxWidth: '200px' }}>
+                          <p
+                            style={{
+                              margin: 0,
+                              fontSize: '14px',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis'
+                            }}
+                            title={client.whatsapp || client.phone}
+                          >
+                            {client.whatsapp || client.phone}
+                          </p>
+                          <p
+                            style={{
+                              margin: 0,
+                              fontSize: '14px',
+                              color: 'var(--text-secondary)',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis'
+                            }}
+                            title={client.email}
+                          >
+                            {client.email}
+                          </p>
+                        </div>
                       </td>
-                      <td style={{ padding: '16px 20px' }}>
+                      <td style={{ padding: '16px 20px', minWidth: '120px', whiteSpace: 'nowrap' }}>
                         <select
                           disabled={userRole === 'viewer'}
                           value={dynamicStatus}
@@ -744,7 +815,9 @@ const Clients = () => {
                             fontSize: '13px',
                             fontWeight: 700,
                             cursor: userRole === 'viewer' ? 'default' : 'pointer',
-                            outline: 'none'
+                            outline: 'none',
+                            minWidth: '100px',
+                            whiteSpace: 'nowrap'
                           }}
                         >
                           <option value="COLD">COLD</option>
@@ -752,7 +825,7 @@ const Clients = () => {
                           <option value="HOT">HOT</option>
                         </select>
                       </td>
-                      <td style={{ padding: '16px 20px' }}>
+                      <td style={{ padding: '16px 20px', minWidth: '140px', whiteSpace: 'nowrap' }}>
                         <select
                           disabled={userRole === 'viewer'}
                           value={(client.proses || 'SUSPECT').toUpperCase()}
@@ -766,7 +839,9 @@ const Clients = () => {
                             fontSize: '13px',
                             fontWeight: 700,
                             cursor: userRole === 'viewer' ? 'default' : 'pointer',
-                            outline: 'none'
+                            outline: 'none',
+                            minWidth: '120px',
+                            whiteSpace: 'nowrap'
                           }}
                         >
                           <option value="SUSPECT">SUSPECT</option>
@@ -779,12 +854,13 @@ const Clients = () => {
                       </td>
 
                       {/* Kolom Status & Aksi Proses Sapa */}
-                      <td style={{ padding: '16px 20px' }}>
+                      <td style={{ padding: '16px 20px', minWidth: '150px', whiteSpace: 'nowrap' }}>
                         {activeDrip ? (
                           <span style={{
                             display: 'inline-flex', alignItems: 'center', gap: '5px',
                             padding: '4px 10px', borderRadius: '12px', fontSize: '13px', fontWeight: 700,
-                            backgroundColor: '#FFF4E5', color: '#E65100', border: '1px solid #FFE0B2'
+                            backgroundColor: '#FFF4E5', color: '#E65100', border: '1px solid #FFE0B2',
+                            whiteSpace: 'nowrap'
                           }} title="Sedang aktif dalam alur sapa bertahap">
                             <Sparkles size={13} /> Tahap {activeDrip.current_step_number}
                           </span>
@@ -795,7 +871,8 @@ const Clients = () => {
                               display: 'inline-flex', alignItems: 'center', gap: '5px',
                               padding: '4px 10px', borderRadius: '8px', fontSize: '13px', fontWeight: 700,
                               backgroundColor: '#FFF8E1', color: '#B78103', border: '1px solid #FFE082',
-                              cursor: 'pointer', transition: 'all 0.2s'
+                              cursor: 'pointer', transition: 'all 0.2s',
+                              whiteSpace: 'nowrap'
                             }}
                             title="Masukkan ke alur Proses Sapa"
                           >
@@ -804,7 +881,7 @@ const Clients = () => {
                         )}
                       </td>
 
-                      <td style={{ padding: '16px 20px', maxWidth: '200px' }}>
+                      <td style={{ padding: '16px 20px', maxWidth: '220px', minWidth: '180px', whiteSpace: 'nowrap' }}>
                         <p
                           style={{
                             margin: 0,
@@ -812,17 +889,18 @@ const Clients = () => {
                             fontWeight: 500,
                             whiteSpace: 'nowrap',
                             overflow: 'hidden',
-                            textOverflow: 'ellipsis'
+                            textOverflow: 'ellipsis',
+                            maxWidth: '200px'
                           }}
                           title={client.lastActivityDesc || client.lastActivity || 'No Activity'}
                         >
                           {client.lastActivityDesc || client.lastActivity || 'No Activity'}
                         </p>
-                        <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-secondary)' }}>
+                        <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
                           {formatDateSafely(client.lastActivityAt || client.updatedAt)}
                         </p>
                       </td>
-                      <td style={{ padding: '16px 20px' }}>
+                      <td style={{ padding: '16px 20px', minWidth: '120px', whiteSpace: 'nowrap' }}>
                         <select
                           disabled={userRole === 'viewer'}
                           value={client.ao || ''}
@@ -837,7 +915,9 @@ const Clients = () => {
                             fontWeight: 600,
                             cursor: userRole === 'viewer' ? 'default' : 'pointer',
                             outline: 'none',
-                            maxWidth: '120px'
+                            maxWidth: '120px',
+                            minWidth: '100px',
+                            whiteSpace: 'nowrap'
                           }}
                         >
                           <option value="">-</option>
@@ -847,7 +927,7 @@ const Clients = () => {
                           })}
                         </select>
                       </td>
-                      <td style={{ padding: '16px 20px', textAlign: 'center' }}>
+                      <td style={{ padding: '16px 20px', textAlign: 'center', minWidth: '140px', whiteSpace: 'nowrap' }}>
 
                         <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}>
                           <button
