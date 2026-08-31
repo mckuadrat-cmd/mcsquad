@@ -32,25 +32,32 @@ serve(async (req) => {
     let messageBody = "";
     let rawPayload: any = {};
 
-    const rawText = await req.text();
-    if (rawText) {
-      try {
-        // 1. Try parsing JSON
-        const body = JSON.parse(rawText);
-        fromPhone = body.sender || body.from || body.phone || body.target || body.wa_number || body.data?.sender || body.data?.from || "";
-        messageBody = body.message || body.msg || body.text || body.body || body.data?.message || "";
-        rawPayload = body;
-      } catch {
-        // 2. Try parsing URLSearchParams (form-urlencoded)
+    if (req.method === 'GET') {
+      const url = new URL(req.url);
+      fromPhone = url.searchParams.get("sender") || url.searchParams.get("from") || url.searchParams.get("phone") || url.searchParams.get("target") || url.searchParams.get("wa_number") || "";
+      messageBody = url.searchParams.get("message") || url.searchParams.get("msg") || url.searchParams.get("text") || url.searchParams.get("body") || "";
+      rawPayload = Object.fromEntries(url.searchParams.entries());
+    } else {
+      const rawText = await req.text();
+      if (rawText) {
         try {
-          const params = new URLSearchParams(rawText);
-          fromPhone = params.get("sender") || params.get("from") || params.get("phone") || params.get("target") || "";
-          messageBody = params.get("message") || params.get("msg") || params.get("text") || "";
-          const obj: any = {};
-          params.forEach((v, k) => { obj[k] = v; });
-          rawPayload = obj;
+          // 1. Try parsing JSON
+          const body = JSON.parse(rawText);
+          fromPhone = body.sender || body.from || body.phone || body.target || body.wa_number || body.data?.sender || body.data?.from || "";
+          messageBody = body.message || body.msg || body.text || body.body || body.data?.message || "";
+          rawPayload = body;
         } catch {
-          rawPayload = { raw: rawText };
+          // 2. Try parsing URLSearchParams (form-urlencoded)
+          try {
+            const params = new URLSearchParams(rawText);
+            fromPhone = params.get("sender") || params.get("from") || params.get("phone") || params.get("target") || "";
+            messageBody = params.get("message") || params.get("msg") || params.get("text") || "";
+            const obj: any = {};
+            params.forEach((v, k) => { obj[k] = v; });
+            rawPayload = obj;
+          } catch {
+            rawPayload = { raw: rawText };
+          }
         }
       }
     }
@@ -80,23 +87,50 @@ serve(async (req) => {
 
     const formattedFrom = formatPhone(fromPhone)
 
-    // Fetch active drip sequences
+    // Fetch active/paused drip sequences
     const { data: activeDrips, error: dripErr } = await supabase
       .from('wa_client_drips')
       .select('*')
-      .eq('status', 'active')
+      .in('status', ['active', 'ACTIVE', 'paused', 'PAUSED'])
 
-    if (dripErr) throw dripErr
+    if (dripErr) console.error("Error fetching active drips:", dripErr);
 
-    const matchingDrip = activeDrips?.find(d => {
+    let matchingDrip = activeDrips?.find(d => {
       const p1 = formatPhone(d.phone);
       const p2 = formattedFrom;
       if (!p1 || !p2) return false;
       if (p1 === p2) return true;
-      const s1 = p1.length >= 8 ? p1.slice(-8) : p1;
-      const s2 = p2.length >= 8 ? p2.slice(-8) : p2;
+      const s1 = p1.length >= 7 ? p1.slice(-8) : p1;
+      const s2 = p2.length >= 7 ? p2.slice(-8) : p2;
       return s1 === s2;
     })
+
+    // If not found in wa_client_drips directly, fallback to search clients table by phone
+    if (!matchingDrip && formattedFrom.length >= 7) {
+      const { data: matchingClients } = await supabase
+        .from('clients')
+        .select('id, nama, whatsapp');
+      
+      const foundClient = matchingClients?.find(c => {
+        const p1 = formatPhone(c.whatsapp || "");
+        const p2 = formattedFrom;
+        if (!p1 || !p2) return false;
+        return p1 === p2 || (p1.length >= 7 && p2.length >= 7 && p1.slice(-8) === p2.slice(-8));
+      });
+
+      if (foundClient) {
+        const { data: clientDripsForUser } = await supabase
+          .from('wa_client_drips')
+          .select('*')
+          .eq('client_id', foundClient.id)
+          .in('status', ['active', 'ACTIVE', 'paused', 'PAUSED'])
+          .limit(1);
+
+        if (clientDripsForUser && clientDripsForUser.length > 0) {
+          matchingDrip = clientDripsForUser[0];
+        }
+      }
+    }
 
     if (matchingDrip) {
       console.log(`Matching active drip found for client: ${matchingDrip.client_name}. Stopping drip...`)

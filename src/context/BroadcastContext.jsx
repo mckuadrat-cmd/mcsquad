@@ -76,10 +76,52 @@ export const BroadcastProvider = ({ children }) => {
       })
       .subscribe();
 
-    // Auto-dispatcher background check every 5 minutes when logged in
+    // Auto-dispatcher background check & inbound reply auto-stop sync every 2 minutes
     const autoDispatchInterval = setInterval(async () => {
       if (!currentUser) return;
       try {
+        // 1. Check inbound logs for auto-stop active drips
+        const { data: currentActiveDrips } = await supabase
+          .from('wa_client_drips')
+          .select('*')
+          .in('status', ['active', 'ACTIVE']);
+
+        if (currentActiveDrips && currentActiveDrips.length > 0) {
+          const { data: inboundLogs } = await supabase
+            .from('wa_inbound_logs')
+            .select('*')
+            .order('processed_at', { ascending: false })
+            .limit(50);
+
+          if (inboundLogs && inboundLogs.length > 0) {
+            for (const drip of currentActiveDrips) {
+              const dripPhoneClean = (drip.phone || '').replace(/\D/g, '');
+              if (!dripPhoneClean) continue;
+
+              const matchedLog = inboundLogs.find(log => {
+                const logPhoneClean = (log.from_phone || '').replace(/\D/g, '');
+                if (!logPhoneClean) return false;
+                return logPhoneClean === dripPhoneClean || 
+                  (logPhoneClean.length >= 7 && dripPhoneClean.length >= 7 && logPhoneClean.slice(-8) === dripPhoneClean.slice(-8));
+              });
+
+              if (matchedLog) {
+                console.log(`[Auto-Stop Sync] Found inbound reply from ${drip.client_name}. Auto-stopping drip...`);
+                await invokeApi(`/wa_client_drips?id=eq.${drip.id}`, {
+                  method: 'PATCH',
+                  body: JSON.stringify({ status: 'stopped_replied', stop_reason: 'Ada Balasan WA', updated_at: new Date().toISOString() })
+                });
+                await invokeApi(`/clients?id=eq.${drip.client_id}`, {
+                  method: 'PUT',
+                  body: JSON.stringify({ status: 'WARM', proses: 'WARM', lastActivityDesc: 'Feedback Proses Sapa (Ada Balasan)', lastActivityAt: new Date().toISOString(), updatedAt: new Date().toISOString() })
+                });
+                refreshBroadcastData();
+              }
+            }
+          }
+        }
+
+        // 2. Dispatch due drips
         const nowIso = new Date().toISOString();
         const { data: dueItems } = await supabase
           .from('wa_client_drips')
@@ -94,9 +136,9 @@ export const BroadcastProvider = ({ children }) => {
           refreshBroadcastData();
         }
       } catch (err) {
-        console.warn('[Auto-Dispatcher] Background check notice:', err?.message || err);
+        console.warn('[Auto-Dispatcher/Auto-Stop] Background check notice:', err?.message || err);
       }
-    }, 5 * 60 * 1000);
+    }, 2 * 60 * 1000);
 
     return () => {
       supabase.removeChannel(channel);
