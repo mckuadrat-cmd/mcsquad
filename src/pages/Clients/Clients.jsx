@@ -680,7 +680,7 @@ const Clients = () => {
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', whiteSpace: 'nowrap' }}>
               <thead>
                 <tr style={{ backgroundColor: '#F8F9FB', color: 'var(--text-secondary)', fontSize: '14px', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
-                  <th style={{ padding: '16px 16px 16px 24px', width: '40px', minWidth: '40px' }}>
+                  <th style={{ position: 'sticky', left: 0, zIndex: 3, backgroundColor: '#F8F9FB', padding: '16px 16px 16px 24px', width: '40px', minWidth: '40px' }}>
                     <input
                       type="checkbox"
                       checked={selectedClientIds.length === paginatedClients.length && paginatedClients.length > 0}
@@ -688,9 +688,9 @@ const Clients = () => {
                       style={{ cursor: 'pointer', width: '16px', height: '16px' }}
                     />
                   </th>
-                  <th style={{ padding: '16px 20px', fontWeight: 600, minWidth: '180px', maxWidth: '240px', whiteSpace: 'nowrap' }}>Nama Client</th>
-                  <th style={{ padding: '16px 20px', fontWeight: 600, minWidth: '160px', maxWidth: '220px', whiteSpace: 'nowrap' }}>Sekolah</th>
-                  <th style={{ padding: '16px 20px', fontWeight: 600, minWidth: '160px', maxWidth: '220px', whiteSpace: 'nowrap' }}>Kontak</th>
+                  <th style={{ position: 'sticky', left: '40px', zIndex: 3, backgroundColor: '#F8F9FB', padding: '16px 20px', fontWeight: 600, minWidth: '220px', width: '220px', whiteSpace: 'nowrap' }}>Nama Client</th>
+                  <th style={{ position: 'sticky', left: '260px', zIndex: 3, backgroundColor: '#F8F9FB', padding: '16px 20px', fontWeight: 600, minWidth: '200px', width: '200px', whiteSpace: 'nowrap' }}>Sekolah</th>
+                  <th style={{ position: 'sticky', left: '460px', zIndex: 3, backgroundColor: '#F8F9FB', padding: '16px 20px', fontWeight: 600, minWidth: '200px', width: '200px', whiteSpace: 'nowrap', boxShadow: '3px 0 5px -2px rgba(0,0,0,0.12)', borderRight: '1px solid var(--border)' }}>Kontak</th>
                   <th style={{ padding: '16px 20px', fontWeight: 600, minWidth: '120px', whiteSpace: 'nowrap' }}>Status</th>
                   <th style={{ padding: '16px 20px', fontWeight: 600, minWidth: '140px', whiteSpace: 'nowrap' }}>Proses</th>
                   <th style={{ padding: '16px 20px', fontWeight: 600, minWidth: '150px', whiteSpace: 'nowrap' }}>Status Sapa</th>
@@ -708,10 +708,11 @@ const Clients = () => {
                   const prosesStyle = getProsesStyle(client.proses);
                   const activeDrip = Array.isArray(clientDrips) ? clientDrips.find(cd => cd.client_id === client.id && cd.status === 'active') : null;
                   const isChecked = selectedClientIds.includes(client.id);
+                  const stickyBg = isChecked ? '#FFFDF5' : '#FFFFFF';
 
                   return (
                     <tr key={client.id} style={{ borderBottom: idx === paginatedClients.length - 1 ? 'none' : '1px solid var(--border)', backgroundColor: isChecked ? '#FFFDF5' : 'transparent', whiteSpace: 'nowrap' }} className="hover:bg-gray-50">
-                      <td style={{ padding: '16px 16px 16px 24px', width: '40px', minWidth: '40px' }}>
+                      <td style={{ position: 'sticky', left: 0, zIndex: 2, backgroundColor: stickyBg, padding: '16px 16px 16px 24px', width: '40px', minWidth: '40px' }}>
                         <input
                           type="checkbox"
                           checked={isChecked}
@@ -719,8 +720,8 @@ const Clients = () => {
                           style={{ cursor: 'pointer', width: '16px', height: '16px' }}
                         />
                       </td>
-                      <td style={{ padding: '16px 20px', maxWidth: '240px', minWidth: '180px', whiteSpace: 'nowrap' }}>
-                        <div style={{ maxWidth: '220px' }}>
+                      <td style={{ position: 'sticky', left: '40px', zIndex: 2, backgroundColor: stickyBg, padding: '16px 20px', maxWidth: '220px', minWidth: '220px', width: '220px', whiteSpace: 'nowrap' }}>
+                        <div style={{ maxWidth: '200px' }}>
                           <p
                             style={{
                               fontWeight: 600,
@@ -753,7 +754,7 @@ const Clients = () => {
                           </p>
                         </div>
                       </td>
-                      <td style={{ padding: '16px 20px', maxWidth: '220px', minWidth: '160px', whiteSpace: 'nowrap' }}>
+                      <td style={{ position: 'sticky', left: '260px', zIndex: 2, backgroundColor: stickyBg, padding: '16px 20px', maxWidth: '200px', minWidth: '200px', width: '200px', whiteSpace: 'nowrap' }}>
                         <span
                           onClick={() => navigate(`/clients/dashboard/${client.sekolah || client.school}`)}
                           style={{
@@ -764,7 +765,7 @@ const Clients = () => {
                             whiteSpace: 'nowrap',
                             overflow: 'hidden',
                             textOverflow: 'ellipsis',
-                            maxWidth: '200px'
+                            maxWidth: '180px'
                           }}
                           className="hover:underline"
                           title={client.sekolah || client.school}
@@ -772,8 +773,8 @@ const Clients = () => {
                           {client.sekolah || client.school}
                         </span>
                       </td>
-                      <td style={{ padding: '16px 20px', maxWidth: '220px', minWidth: '160px', whiteSpace: 'nowrap' }}>
-                        <div style={{ maxWidth: '200px' }}>
+                      <td style={{ position: 'sticky', left: '460px', zIndex: 2, backgroundColor: stickyBg, padding: '16px 20px', maxWidth: '200px', minWidth: '200px', width: '200px', whiteSpace: 'nowrap', boxShadow: '3px 0 5px -2px rgba(0,0,0,0.12)', borderRight: '1px solid var(--border)' }}>
+                        <div style={{ maxWidth: '180px' }}>
                           <p
                             style={{
                               margin: 0,
@@ -967,24 +968,20 @@ const Clients = () => {
           </div>
 
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', whiteSpace: 'nowrap' }}>
               <thead>
-                <tr style={{ textAlign: 'left', backgroundColor: '#F8F9FB', color: 'var(--text-secondary)', fontSize: '14px', textTransform: 'uppercase' }}>
+                <tr style={{ textAlign: 'left', backgroundColor: '#F8F9FB', color: 'var(--text-secondary)', fontSize: '14px', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
                   <th style={{ padding: '16px 24px', fontWeight: 600, width: '100px' }}>ID</th>
                   <th style={{ padding: '16px 24px', fontWeight: 600 }}>Nama Sekolah</th>
                   <th style={{ padding: '16px 24px', fontWeight: 600, width: '30%' }}>Alamat</th>
                   <th style={{ padding: '16px 24px', fontWeight: 600 }}>Status</th>
                   <th style={{ padding: '16px 24px', fontWeight: 600 }}>Aktivitas Terakhir</th>
                   <th style={{ padding: '16px 24px', fontWeight: 600 }}>PIC</th>
-                  <th style={{ padding: '16px 24px', fontWeight: 600, textAlign: 'right' }}>Aksi</th>
-
-
-
                 </tr>
               </thead>
               <tbody>
                 {uniqueSchools.map(s => (
-                  <tr key={s.id} style={{ borderBottom: '1px solid var(--border)' }} className="hover:bg-gray-50">
+                  <tr key={s.id} style={{ borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' }} className="hover:bg-gray-50">
                     <td style={{ padding: '16px 24px', fontWeight: 700, color: 'var(--primary)' }}>{s.id}</td>
                     <td style={{ padding: '16px 24px', fontWeight: 600 }}>
                       <span
@@ -1009,18 +1006,6 @@ const Clients = () => {
                     </td>
 
                     <td style={{ padding: '16px 24px' }}>{s.picCount} Person</td>
-                    <td style={{ padding: '16px 24px', textAlign: 'right' }}>
-                      {!s.hasClient && userRole !== 'viewer' && (
-
-                        <button
-                          onClick={() => { setMergeSource(s); setIsMergeModalOpen(true); }}
-                          className="btn btn-primary"
-                          style={{ padding: '6px 12px', fontSize: '13px' }}
-                        >
-                          Merge
-                        </button>
-                      )}
-                    </td>
                   </tr>
                 ))}
               </tbody>
