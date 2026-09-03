@@ -48,13 +48,6 @@ const Settings = () => {
   const [isAddTeamOpen, setIsAddTeamOpen] = useState(false);
   const [newTeam, setNewTeam] = useState({ name: '', email: '', role: 'staff', division: 'Consulting', status: 'Aktif', nickname: '', whatsapp: '' });
 
-  // --- Google Docs Settings State ---
-  const [googleDocsData, setGoogleDocsData] = useState({
-    googleAppsScriptUrl: '',
-    googleDriveFolderId: '',
-    templates: { SPH: '', SKK: '', MOU: '', INV: '', KUI: '', GEN: '' }
-  });
-
   useEffect(() => {
     if (userProfile || currentUser) {
       setProfileData({
@@ -96,26 +89,12 @@ const Settings = () => {
         console.error("Error fetching business settings", e);
       }
     };
-    const fetchGoogleDocsSettings = async () => {
-      try {
-        const { data } = await invokeApi('/settings?id=eq.google_docs&single=true');
-        if (data && data.value) {
-          const val = data.value;
-          if (!val.templates) val.templates = { SPH: '', SKK: '', MOU: '', INV: '', KUI: '', GEN: '' };
-          setGoogleDocsData(prev => ({ ...prev, ...val }));
-        }
-      } catch (e) {
-        console.error("Error fetching google docs settings", e);
-      }
-    };
     fetchBusinessSettings();
-    fetchGoogleDocsSettings();
   }, []);
 
   const tabs = [
     { id: 'profile', label: 'Profil Saya', icon: <User size={18} /> },
     { id: 'business', label: 'Profil Instansi', icon: <Building size={18} />, hidden: userRole !== 'owner' && userRole !== 'admin' },
-    { id: 'google_docs', label: 'Google Docs', icon: <FileText size={18} />, hidden: userRole !== 'owner' && userRole !== 'admin' },
     { id: 'team', label: 'Tim & Akses', icon: <Users size={18} />, hidden: userRole !== 'owner' && userRole !== 'admin' },
     { id: 'security', label: 'Keamanan Data', icon: <Shield size={18} />, hidden: userRole !== 'owner' && userRole !== 'admin' },
   ];
@@ -270,23 +249,6 @@ const Settings = () => {
     } catch (e) {
       console.error(e);
       triggerStatus('Gagal menyimpan profil bisnis.', 'error');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleSaveGoogleDocs = async (e) => {
-    e.preventDefault();
-    setSaving(true);
-    try {
-      await invokeApi('/settings', {
-        method: 'PUT',
-        body: { id: 'google_docs', value: googleDocsData, updatedAt: new Date().toISOString() }
-      });
-      triggerStatus('Pengaturan Google Docs berhasil disimpan!');
-    } catch (e) {
-      console.error(e);
-      triggerStatus('Gagal menyimpan pengaturan Google Docs.', 'error');
     } finally {
       setSaving(false);
     }
@@ -586,7 +548,7 @@ const Settings = () => {
             <form onSubmit={handleSaveBusiness}>
               <h2 style={{ fontSize: '20px', fontWeight: 600, marginBottom: '8px' }}>Profil Bisnis / Instansi</h2>
               <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '24px', borderBottom: '1px solid var(--border)', paddingBottom: '16px' }}>
-                Data ini akan otomatis dicetak pada Kop Surat di Modul <strong style={{ color: 'var(--primary)' }}>Document Generator</strong>.
+                Data profil & rekening instansi resmi MCKuadrat yang digunakan di seluruh sistem.
               </p>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginBottom: '32px' }}>
@@ -634,81 +596,6 @@ const Settings = () => {
                     ))}
                   </div>
                 </div>
-
-                <div style={{ borderTop: '1px dashed var(--border)', marginTop: '8px', paddingTop: '24px' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '2fr 1fr', gap: '24px' }}>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, marginBottom: '8px' }}>Upload Kop Surat (Header Dokumen)</label>
-                      <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '16px' }}>Gunakan gambar resolusi tinggi (rasio memanjang) untuk hasil cetak PDF terbaik.</p>
-                      <div style={{ border: '2px dashed var(--border)', borderRadius: '12px', padding: '24px', textAlign: 'center', backgroundColor: '#F8F9FB', position: 'relative' }}>
-                        {businessData.kopSuratUrl ? (
-                          <img src={businessData.kopSuratUrl} alt="Kop Surat" style={{ maxWidth: '100%', maxHeight: '100px', objectFit: 'contain' }} />
-                        ) : (
-                          <p style={{ fontSize: '14px', color: 'var(--text-secondary)', margin: 0 }}>Belum ada Kop Surat.</p>
-                        )}
-                        <input type="file" id="kop-upload" accept="image/*" onChange={(e) => handleBusinessImageUpload(e.target.files[0], 'kopSuratUrl')} style={{ display: 'none' }} disabled={uploading} />
-                        <div style={{ marginTop: '16px' }}>
-                          <label htmlFor="kop-upload" className="btn btn-outline" style={{ padding: '8px 16px', fontSize: '14px', display: 'inline-flex', cursor: uploading ? 'not-allowed' : 'pointer' }}>Ganti Kop Surat</label>
-                        </div>
-                      </div>
-                    </div>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, marginBottom: '8px' }}>Cap Perusahaan / Stempel</label>
-                      <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '16px' }}>Gunakan PNG transparan agar menyatu dengan tanda tangan.</p>
-                      <div style={{ border: '2px dashed var(--border)', borderRadius: '12px', padding: '24px', textAlign: 'center', backgroundColor: '#F8F9FB', position: 'relative' }}>
-                        {businessData.capUrl ? (
-                          <img src={businessData.capUrl} alt="Cap Perusahaan" style={{ maxWidth: '100%', maxHeight: '100px', objectFit: 'contain' }} />
-                        ) : (
-                          <p style={{ fontSize: '14px', color: 'var(--text-secondary)', margin: 0 }}>Belum ada Cap.</p>
-                        )}
-                        <input type="file" id="cap-upload" accept="image/png" onChange={(e) => handleBusinessImageUpload(e.target.files[0], 'capUrl')} style={{ display: 'none' }} disabled={uploading} />
-                        <div style={{ marginTop: '16px' }}>
-                          <label htmlFor="cap-upload" className="btn btn-outline" style={{ padding: '8px 16px', fontSize: '14px', display: 'inline-flex', cursor: uploading ? 'not-allowed' : 'pointer' }}>Ganti Cap</label>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '24px', marginTop: '12px' }}>
-                  <div style={{ border: '1px solid var(--border)', borderRadius: '12px', padding: '20px', backgroundColor: 'white' }}>
-                    <h3 style={{ fontSize: '15px', fontWeight: 600, marginBottom: '16px' }}>Penanggung Jawab Direktur<br /><span style={{ fontSize: '14px', color: 'var(--text-secondary)', fontWeight: 400 }}>(Untuk tanda tangan MoU/SKK)</span></h3>
-                    <label style={{ display: 'block', fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Nama Lengkap Direktur</label>
-                    <input type="text" value={businessData.direkturName} onChange={e => setBusinessData({ ...businessData, direkturName: e.target.value })} style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: '#F8F9FB', outline: 'none', marginBottom: '16px' }} />
-
-                    <label style={{ display: 'block', fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Upload TTD Direktur (PNG Transparan)</label>
-                    <div style={{ border: '1px dashed var(--border)', borderRadius: '8px', padding: '16px', textAlign: 'center', backgroundColor: '#F8F9FB' }}>
-                      {businessData.direkturTtdUrl ? (
-                        <img src={businessData.direkturTtdUrl} alt="TTD Direktur" style={{ height: '70px', objectFit: 'contain' }} />
-                      ) : (
-                        <p style={{ fontSize: '14px', color: 'var(--text-secondary)', margin: 0 }}>Belum ada TTD.</p>
-                      )}
-                      <input type="file" id="ttd-dir-upload" accept="image/png" onChange={(e) => handleBusinessImageUpload(e.target.files[0], 'direkturTtdUrl')} style={{ display: 'none' }} disabled={uploading} />
-                      <div style={{ marginTop: '12px' }}>
-                        <label htmlFor="ttd-dir-upload" className="btn btn-outline" style={{ padding: '6px 12px', fontSize: '14px', display: 'inline-flex', cursor: uploading ? 'not-allowed' : 'pointer' }}>Upload TTD (PNG)</label>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div style={{ border: '1px solid var(--border)', borderRadius: '12px', padding: '20px', backgroundColor: 'white' }}>
-                    <h3 style={{ fontSize: '15px', fontWeight: 600, marginBottom: '16px' }}>Penanggung Jawab Finance<br /><span style={{ fontSize: '14px', color: 'var(--text-secondary)', fontWeight: 400 }}>(Untuk tanda tangan Invoice/Kuitansi)</span></h3>
-                    <label style={{ display: 'block', fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Nama Lengkap Finance</label>
-                    <input type="text" value={businessData.financeName} onChange={e => setBusinessData({ ...businessData, financeName: e.target.value })} style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: '#F8F9FB', outline: 'none', marginBottom: '16px' }} />
-
-                    <label style={{ display: 'block', fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Upload TTD Finance (PNG Transparan)</label>
-                    <div style={{ border: '1px dashed var(--border)', borderRadius: '8px', padding: '16px', textAlign: 'center', backgroundColor: '#F8F9FB' }}>
-                      {businessData.financeTtdUrl ? (
-                        <img src={businessData.financeTtdUrl} alt="TTD Finance" style={{ height: '70px', objectFit: 'contain' }} />
-                      ) : (
-                        <p style={{ fontSize: '14px', color: 'var(--text-secondary)', margin: 0 }}>Belum ada TTD.</p>
-                      )}
-                      <input type="file" id="ttd-fin-upload" accept="image/png" onChange={(e) => handleBusinessImageUpload(e.target.files[0], 'financeTtdUrl')} style={{ display: 'none' }} disabled={uploading} />
-                      <div style={{ marginTop: '12px' }}>
-                        <label htmlFor="ttd-fin-upload" className="btn btn-outline" style={{ padding: '6px 12px', fontSize: '14px', display: 'inline-flex', cursor: uploading ? 'not-allowed' : 'pointer' }}>Upload TTD (PNG)</label>
-                      </div>
-                    </div>
-                  </div>
-                </div>
               </div>
 
               <div style={{ borderTop: '1px solid var(--border)', paddingTop: '24px', display: 'flex', justifyContent: 'flex-end' }}>
@@ -719,138 +606,7 @@ const Settings = () => {
             </form>
           )}
 
-          {activeTab === 'google_docs' && (userRole === 'owner' || userRole === 'admin') && (
-            <form onSubmit={handleSaveGoogleDocs}>
-              <h2 style={{ fontSize: '20px', fontWeight: 600, marginBottom: '8px' }}>Integrasi Google Docs & PDF Generator</h2>
-              <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '24px', borderBottom: '1px solid var(--border)', paddingBottom: '16px' }}>
-                Gunakan Google Docs sebagai Master Template dokumen Anda. Pengguna mengisi form di CRM, sistem otomatis men-generate dokumen di Google Docs dan mengonversinya menjadi file PDF.
-              </p>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginBottom: '32px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, marginBottom: '8px' }}>Google Apps Script Web App URL</label>
-                  <input
-                    type="url"
-                    value={googleDocsData.googleAppsScriptUrl}
-                    onChange={e => setGoogleDocsData({ ...googleDocsData, googleAppsScriptUrl: e.target.value })}
-                    placeholder="https://script.google.com/macros/s/.../exec"
-                    style={{ width: '100%', padding: '12px 16px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: '#F8F9FB', outline: 'none' }}
-                  />
-                  <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                    URL Web App yang diperoleh setelah mempublikasikan Apps Script Anda (pilih akses: "Anyone").
-                  </p>
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, marginBottom: '8px' }}>Target Folder ID Google Drive</label>
-                  <input
-                    type="text"
-                    value={googleDocsData.googleDriveFolderId}
-                    onChange={e => setGoogleDocsData({ ...googleDocsData, googleDriveFolderId: e.target.value })}
-                    placeholder="Contoh: 1aB_cDeFgHiJkLmNoPqRsTuVwXyZ"
-                    style={{ width: '100%', padding: '12px 16px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: '#F8F9FB', outline: 'none' }}
-                  />
-                  <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                    ID folder Google Drive tempat menyimpan hasil PDF yang di-generate. Dapat diambil dari akhir URL folder di browser.
-                  </p>
-                </div>
-
-                <div style={{ borderTop: '1px dashed var(--border)', marginTop: '8px', paddingTop: '24px' }}>
-                  <h3 style={{ fontSize: '15px', fontWeight: 600, marginBottom: '16px' }}>ID Template Google Docs (Master Templates)</h3>
-                  <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '16px' }}>
-                    Buka file template Anda di Google Docs, lalu salin ID unik yang ada di URL-nya (di antara `/d/` dan `/edit`).
-                  </p>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '20px' }}>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '6px' }}>Template SPH (Surat Penawaran Harga)</label>
-                      <input
-                        type="text"
-                        value={googleDocsData.templates?.SPH || ''}
-                        onChange={e => setGoogleDocsData({
-                          ...googleDocsData,
-                          templates: { ...googleDocsData.templates, SPH: e.target.value }
-                        })}
-                        placeholder="Google Doc ID..."
-                        style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: '#F8F9FB', outline: 'none' }}
-                      />
-                    </div>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '6px' }}>Template SKK (Surat Kerjasama & Jadwal)</label>
-                      <input
-                        type="text"
-                        value={googleDocsData.templates?.SKK || ''}
-                        onChange={e => setGoogleDocsData({
-                          ...googleDocsData,
-                          templates: { ...googleDocsData.templates, SKK: e.target.value }
-                        })}
-                        placeholder="Google Doc ID..."
-                        style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: '#F8F9FB', outline: 'none' }}
-                      />
-                    </div>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '6px' }}>Template MOU (MoU Kerjasama)</label>
-                      <input
-                        type="text"
-                        value={googleDocsData.templates?.MOU || ''}
-                        onChange={e => setGoogleDocsData({
-                          ...googleDocsData,
-                          templates: { ...googleDocsData.templates, MOU: e.target.value }
-                        })}
-                        placeholder="Google Doc ID..."
-                        style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: '#F8F9FB', outline: 'none' }}
-                      />
-                    </div>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '6px' }}>Template Invoice (INV)</label>
-                      <input
-                        type="text"
-                        value={googleDocsData.templates?.INV || ''}
-                        onChange={e => setGoogleDocsData({
-                          ...googleDocsData,
-                          templates: { ...googleDocsData.templates, INV: e.target.value }
-                        })}
-                        placeholder="Google Doc ID..."
-                        style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: '#F8F9FB', outline: 'none' }}
-                      />
-                    </div>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '6px' }}>Template Kuitansi (KUI)</label>
-                      <input
-                        type="text"
-                        value={googleDocsData.templates?.KUI || ''}
-                        onChange={e => setGoogleDocsData({
-                          ...googleDocsData,
-                          templates: { ...googleDocsData.templates, KUI: e.target.value }
-                        })}
-                        placeholder="Google Doc ID..."
-                        style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: '#F8F9FB', outline: 'none' }}
-                      />
-                    </div>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '6px' }}>Template Surat Umum (GEN)</label>
-                      <input
-                        type="text"
-                        value={googleDocsData.templates?.GEN || ''}
-                        onChange={e => setGoogleDocsData({
-                          ...googleDocsData,
-                          templates: { ...googleDocsData.templates, GEN: e.target.value }
-                        })}
-                        placeholder="Google Doc ID..."
-                        style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: '#F8F9FB', outline: 'none' }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div style={{ borderTop: '1px solid var(--border)', paddingTop: '24px', display: 'flex', justifyContent: 'flex-end' }}>
-                <button type="submit" disabled={saving} className="btn btn-primary" style={{ padding: '10px 24px', borderRadius: '8px' }}>
-                  <Save size={16} style={{ marginRight: '8px' }} /> {saving ? 'Menyimpan...' : 'Simpan Pengaturan Google Docs'}
-                </button>
-              </div>
-            </form>
-          )}
 
           {activeTab === 'team' && (userRole === 'owner' || userRole === 'admin') && (
             <div>

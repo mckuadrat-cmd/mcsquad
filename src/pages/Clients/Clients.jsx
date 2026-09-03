@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Plus, Filter, MoreVertical, Edit2, Trash2, Eye, Download, Upload, Clock, ChevronLeft, ChevronRight, X, Building2, Send, Sparkles, Radio } from 'lucide-react';
 import { invokeApi } from '../../lib/supabase';
@@ -24,7 +24,8 @@ const formatDateSafely = (dateVal) => {
 const Clients = () => {
   const navigate = useNavigate();
   const { clients = [], uniqueSchools = [], users = [] } = useAppData();
-  const { userRole, currentUser } = useAuth();
+  const { userRole, currentUser, userProfile } = useAuth();
+  const userName = userProfile?.nickname?.trim() || userProfile?.name?.trim() || currentUser?.displayName?.split(' ')[0] || 'Staff';
   const { showAlert, showConfirm, showToast } = useNotification();
   const { startClientDrip, stopClientDrip, clientDrips, dripSteps = [], templates = [] } = useBroadcast();
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -58,11 +59,22 @@ const Clients = () => {
     whatsapp: '',
     email: '',
     notes: '',
-    ao: ''
+    ao: userName
   });
 
   // Autocomplete State
   const [showSchoolDropdown, setShowSchoolDropdown] = useState(false);
+  const autocompleteRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (autocompleteRef.current && !autocompleteRef.current.contains(event.target)) {
+        setShowSchoolDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // CSV Import Typo Queue State
   const [importPendingQueue, setImportPendingQueue] = useState([]);
@@ -94,7 +106,7 @@ const Clients = () => {
         whatsapp: editingClient.whatsapp || editingClient.phone || '',
         email: editingClient.email || '',
         notes: editingClient.notes || '',
-        ao: editingClient.ao || ''
+        ao: editingClient.ao || userName
       });
     } else {
       setFormData({
@@ -108,10 +120,10 @@ const Clients = () => {
         whatsapp: '',
         email: '',
         notes: '',
-        ao: ''
+        ao: userName
       });
     }
-  }, [editingClient]);
+  }, [editingClient, userName]);
 
   const filteredClients = useMemo(() => {
     return clients.filter(client => {
@@ -334,7 +346,7 @@ const Clients = () => {
       showToast("Tidak ada data client untuk diexport!", "error");
       return;
     }
-    const headers = ['Sapaan', 'Nama', 'Panggilan', 'Sekolah', 'Alamat', 'Posisi', 'WhatsApp', 'Email', 'Status', 'Proses', 'Notes'];
+    const headers = ['Sapaan', 'Nama', 'Panggilan', 'Sekolah', 'Alamat', 'Posisi', 'WhatsApp', 'Email', 'AO', 'Status', 'Proses', 'Notes'];
     const rows = filteredClients.map(c => [
       c.sapaan || c.salutation || '',
       c.nama || c.name || '',
@@ -344,13 +356,14 @@ const Clients = () => {
       c.posisi || c.position || '',
       c.whatsapp || c.phone || '',
       c.email || '',
+      c.ao || '',
       c.status || 'COLD',
       c.proses || 'SUSPECT',
       c.notes || ''
     ]);
 
-    const csvContent = headers.join(",") + "\n"
-      + rows.map(e => e.map(val => `"${val.replace(/"/g, '""')}"`).join(",")).join("\n");
+    const csvContent = "\uFEFF" + headers.join(",") + "\n"
+      + rows.map(e => e.map(val => `"${String(val).replace(/"/g, '""')}"`).join(",")).join("\n");
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -371,14 +384,15 @@ const Clients = () => {
       body: {
         id: newId,
         sapaan: item.sapaan || item.salutation || 'Bapak',
-        nama: item.nama || item.name || 'Unknown',
+        nama: item.nama || item.name || item.pic || item['nama pic'] || 'Unknown',
         panggilan: item.panggilan || item.nickname || '',
         sekolah: finalSchoolName,
         schoolId: finalSchoolId,
         alamat: item.alamat || item.schooladdress || item['school address'] || item.schoolAddress || '',
         posisi: item.posisi || item.position || '',
-        whatsapp: item.whatsapp || item.phone || '',
+        whatsapp: item.whatsapp || item.phone || item.no_hp || item['no hp'] || item.telepon || '',
         email: item.email || '',
+        ao: item.ao || item.pic_internal || item['pic internal'] || userName || '',
         status: item.status ? item.status.toUpperCase() : 'COLD',
         proses: item.proses ? item.proses.toUpperCase() : (item.stage ? item.stage.toUpperCase() : 'SUSPECT'),
         notes: item.notes || '',
@@ -397,7 +411,8 @@ const Clients = () => {
       setImportCount(prev => prev + 1);
     } else if (choice === 'new') {
       const newSchoolId = `S-${Math.floor(Math.random() * 9000) + 1000}`;
-      await saveImportedClient(item, (item.sekolah || item.school || '').trim(), newSchoolId);
+      const rawSchoolName = (item.sekolah || item.school || item.nama_sekolah || item['nama sekolah'] || '').trim();
+      await saveImportedClient(item, rawSchoolName, newSchoolId);
       setImportCount(prev => prev + 1);
     }
 
@@ -419,7 +434,7 @@ const Clients = () => {
     const reader = new FileReader();
     reader.onload = async (event) => {
       try {
-        const text = event.target.result;
+        const text = (event.target.result || '').replace(/^\uFEFF/, '');
         const lines = text.split('\n');
         if (lines.length < 2) return;
 
@@ -438,7 +453,7 @@ const Clients = () => {
         const fuzzyQueue = [];
 
         for (const item of importedData) {
-          const rawSchool = item.school || 'Unknown';
+          const rawSchool = item.sekolah || item.school || item.nama_sekolah || item['nama sekolah'] || 'Unknown';
           const matchResult = findSimilarSchool(rawSchool, uniqueSchools);
 
           if (matchResult && (matchResult.matchType === 'exact' || matchResult.matchType === 'normalized')) {
@@ -932,9 +947,9 @@ const Clients = () => {
 
                         <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}>
                           <button
-                            onClick={() => openManualWaChat(client.whatsapp || client.phone, `Assalamualaikum ${client.sapaan || client.salutation || 'Bapak/Ibu'} ${client.nama || client.name}`)}
+                            onClick={() => openManualWaChat(client.whatsapp || client.phone, '', client)}
                             className="icon-btn"
-                            title="Kirim Pesan WhatsApp"
+                            title="Kirim Pesan WhatsApp Manual"
                             style={{ color: '#25D366' }}
                           >
                             <Send size={18} />
@@ -1049,29 +1064,61 @@ const Clients = () => {
             </div>
             <div style={{ flex: 1, padding: '24px', overflowY: 'auto' }}>
               <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <div>
-                  <label className="text-sm font-bold mb-2 block">Sekolah *</label>
-                  <div style={{ position: 'relative' }}>
-                    <input
-                      type="text"
-                      disabled={isViewMode}
-                      value={formData.sekolah}
-                      onChange={(e) => { setFormData({ ...formData, sekolah: e.target.value }); setShowSchoolDropdown(true); }}
-                      onFocus={() => setShowSchoolDropdown(true)}
-                      className="form-input"
-                      placeholder="contoh: SMA Negeri 2 Jakarta"
-                      required
-                    />
-                    {showSchoolDropdown && !isViewMode && formData.sekolah.length > 0 && (
-                      <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, backgroundColor: 'white', border: '1px solid var(--border)', borderRadius: '8px', zIndex: 10, maxHeight: '150px', overflowY: 'auto' }}>
-                        {uniqueSchools.filter(s => s.name.toLowerCase().includes(formData.sekolah.toLowerCase())).map(s => (
-                          <div key={s.id} onClick={() => { setFormData({ ...formData, sekolah: s.name, schoolId: s.id }); setShowSchoolDropdown(false); }} style={{ padding: '10px', cursor: 'pointer', borderBottom: '1px solid #f0f0f0' }} className="hover:bg-gray-50">
-                            {s.name}
+                <div style={{ position: 'relative' }} ref={autocompleteRef}>
+                  <label className="text-sm font-bold mb-2 block">Sekolah <span style={{ color: 'red' }}>*</span></label>
+                  <input
+                    type="text"
+                    disabled={isViewMode}
+                    required
+                    value={formData.sekolah}
+                    onChange={(e) => {
+                      setFormData({ ...formData, sekolah: e.target.value });
+                      setShowSchoolDropdown(true);
+                    }}
+                    onFocus={() => setShowSchoolDropdown(true)}
+                    placeholder="Cari sekolah atau tambahkan baru"
+                    className="form-input"
+                  />
+                  {showSchoolDropdown && !isViewMode && (formData.sekolah || '').length > 0 && (() => {
+                    const filtered = uniqueSchools.filter(s =>
+                      s.name.toLowerCase().includes((formData.sekolah || '').toLowerCase())
+                    );
+                    return (
+                      <div style={{
+                        position: 'absolute', top: '100%', left: 0, right: 0, backgroundColor: 'var(--surface)',
+                        border: '1px solid var(--border)', borderRadius: '12px', marginTop: '4px', zIndex: 20,
+                        maxHeight: '200px', overflowY: 'auto', boxShadow: '0 8px 16px rgba(0,0,0,0.08)'
+                      }}>
+                        {filtered.length > 0 ? (
+                          <>
+                            <div style={{ padding: '8px 16px', fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', backgroundColor: '#F8F9FB', borderBottom: '1px solid var(--border)' }}>
+                              PILIH SEKOLAH TERDAFTAR:
+                            </div>
+                            {filtered.map(s => (
+                              <div
+                                key={s.id}
+                                onClick={() => {
+                                  setFormData({ ...formData, sekolah: s.name, schoolId: s.id, alamat: s.address || formData.alamat });
+                                  setShowSchoolDropdown(false);
+                                }}
+                                style={{ padding: '12px 16px', cursor: 'pointer', borderBottom: '1px solid var(--border)' }}
+                                className="hover:bg-primary-soft transition-colors"
+                              >
+                                <p style={{ margin: 0, fontWeight: 500, fontSize: '15px' }}>
+                                  <span style={{ color: 'var(--primary)', marginRight: '6px' }}>{s.id}</span>
+                                  {s.name}
+                                </p>
+                              </div>
+                            ))}
+                          </>
+                        ) : (
+                          <div style={{ padding: '12px 16px', color: 'var(--text-secondary)', fontSize: '14px' }}>
+                            Sekolah baru? <strong>"{formData.sekolah}"</strong> akan dibuat sebagai record baru.
                           </div>
-                        ))}
+                        )}
                       </div>
-                    )}
-                  </div>
+                    );
+                  })()}
                 </div>
                 <div>
                   <label className="text-sm font-bold mb-2 block">Alamat</label>
@@ -1124,7 +1171,7 @@ const Clients = () => {
                 </div>
 
                 <div>
-                  <label className="text-sm font-bold mb-2 block">AO (Account Officer / Internal)</label>
+                  <label className="text-sm font-bold mb-2 block">AO (Account Officer)</label>
                   <select
                     disabled={isViewMode}
                     value={formData.ao || ''}
@@ -1263,20 +1310,20 @@ const Clients = () => {
                       const template = templates.find(t => t.id === step.template_id);
                       const templateName = template ? template.name : (step.custom_message ? 'Custom Message' : 'Tanpa Template');
                       const isFirst = step.step_number === 1;
-                      
+
                       return (
                         <div key={step.id || idx} style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                          <span style={{ 
-                            width: '22px', 
-                            height: '22px', 
-                            borderRadius: '50%', 
-                            backgroundColor: isFirst ? '#E5F6EB' : '#FFF4E5', 
-                            color: isFirst ? '#2ED47A' : '#FFB020', 
-                            fontWeight: 700, 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            justifyContent: 'center', 
-                            fontSize: '12px' 
+                          <span style={{
+                            width: '22px',
+                            height: '22px',
+                            borderRadius: '50%',
+                            backgroundColor: isFirst ? '#E5F6EB' : '#FFF4E5',
+                            color: isFirst ? '#2ED47A' : '#FFB020',
+                            fontWeight: 700,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '12px'
                           }}>
                             {step.step_number}
                           </span>

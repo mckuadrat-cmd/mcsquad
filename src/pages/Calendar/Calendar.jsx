@@ -44,7 +44,7 @@ const Calendar = () => {
 
   React.useEffect(() => {
     let calendarChannel;
-    
+
     const fetchEvents = async () => {
       try {
         const { data } = await invokeApi('/calendar_events');
@@ -77,14 +77,14 @@ const Calendar = () => {
   }, []);
 
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [selectedEvent, setSelectedEvent] = useState(null); 
+  const [selectedEvent, setSelectedEvent] = useState(null);
   const [selectedDate, setSelectedDate] = useState(null);
 
   const dateEvents = useMemo(() => {
     if (!selectedDate) return [];
     return events.filter(e => e.date === selectedDate || e.start?.split('T')[0] === selectedDate);
   }, [selectedDate, events]);
-  
+
   const [formData, setFormData] = useState({
     title: '',
     schoolName: '',
@@ -104,7 +104,7 @@ const Calendar = () => {
     }
   }, [userName, selectedEvent]);
 
-  const filteredSchoolSuggestions = uniqueSchools.filter(s => 
+  const filteredSchoolSuggestions = uniqueSchools.filter(s =>
     s.name.toLowerCase().includes((formData.schoolName || '').toLowerCase())
   );
 
@@ -137,14 +137,14 @@ const Calendar = () => {
     const dStr = ev.start ? ev.start.toISOString().split('T')[0] : '';
     const sTime = ev.start ? ev.start.toTimeString().split(' ')[0].substring(0, 5) : '';
     const eTime = ev.end ? ev.end.toTimeString().split(' ')[0].substring(0, 5) : '';
-    
+
     setSelectedEvent(ev);
     setFormData({
       title: ev.title,
       schoolName: ev.extendedProps.schoolName || '',
       schoolId: ev.extendedProps.schoolId || '',
       date: dStr,
-      startTime: sTime, 
+      startTime: sTime,
       endTime: eTime,
       type: ev.extendedProps.type || 'task',
       pic: ev.extendedProps.pic || '',
@@ -155,12 +155,12 @@ const Calendar = () => {
 
   const handleSave = async (e) => {
     e.preventDefault();
-    
+
     let bg = '#F4F6F9', border = '#7A849C', text = '#7A849C';
-    if(formData.type === 'event') { bg = '#E5EFFF'; border = '#4680FF'; text = '#4680FF'; }
-    if(formData.type === 'reminder') { bg = '#FFF4E5'; border = '#FFB020'; text = '#FFB020'; }
-    if(formData.type === 'deadline') { bg = '#FFE5E5'; border = '#FF5252'; text = '#FF5252'; }
-    if(formData.type === 'task') { bg = '#E5F6EB'; border = '#2ED47A'; text = '#2ED47A'; }
+    if (formData.type === 'event') { bg = '#E5EFFF'; border = '#4680FF'; text = '#4680FF'; }
+    if (formData.type === 'reminder') { bg = '#FFF4E5'; border = '#FFB020'; text = '#FFB020'; }
+    if (formData.type === 'deadline') { bg = '#FFE5E5'; border = '#FF5252'; text = '#FF5252'; }
+    if (formData.type === 'task') { bg = '#E5F6EB'; border = '#2ED47A'; text = '#2ED47A'; }
 
     const isTimed = formData.startTime !== '';
     const startStr = isTimed ? `${formData.date}T${formData.startTime}:00` : formData.date;
@@ -172,10 +172,10 @@ const Calendar = () => {
       end: endStr,
       allDay: !isTimed,
       backgroundColor: bg, borderColor: border, textColor: text,
-      extendedProps: { 
-        type: formData.type, 
+      extendedProps: {
+        type: formData.type,
         isEstimasi: selectedEvent?.extendedProps?.isEstimasi || false,
-        pic: userName, 
+        pic: userName,
         desc: formData.desc,
         schoolName: formData.schoolName,
         schoolId: formData.schoolId
@@ -188,22 +188,22 @@ const Calendar = () => {
     // This handleSave is for MANUAL creation/edit in Calendar.
     // Leads events are updated in Leads.jsx.
     // So if the user edits a LEAD event in Calendar, it should ideally keep being an 'event' type.
-    
+
     // Check if we already have colors (e.g. from lead sync)
     if (selectedEvent && selectedEvent.backgroundColor) {
-       // if user didn't change category, keep original colors
-       const originalType = selectedEvent.extendedProps.type;
-       if (originalType === formData.type) {
-         eventData.backgroundColor = selectedEvent.backgroundColor;
-         eventData.borderColor = selectedEvent.borderColor;
-         eventData.textColor = selectedEvent.textColor;
-       }
+      // if user didn't change category, keep original colors
+      const originalType = selectedEvent.extendedProps.type;
+      if (originalType === formData.type) {
+        eventData.backgroundColor = selectedEvent.backgroundColor;
+        eventData.borderColor = selectedEvent.borderColor;
+        eventData.textColor = selectedEvent.textColor;
+      }
     }
 
     try {
       if (selectedEvent) {
         await invokeApi(`/calendar_events?id=eq.${selectedEvent.id}`, { method: 'PUT', body: eventData });
-        
+
         // SYNC BACK TO LEAD if it's a lead-linked event
         if (selectedEvent.id.startsWith('EVL-')) {
           const leadId = selectedEvent.id.replace('EVL-', '');
@@ -231,7 +231,7 @@ const Calendar = () => {
             createdAt: new Date().toISOString()
           }
         });
-        
+
         // Auto Log Activity
         logActivity(currentUser, `Menjadwalkan ${formData.type}: ${formData.title}`, newId, 'Event', 'Reminder');
       }
@@ -241,35 +241,40 @@ const Calendar = () => {
       showAlert("Kesalahan", "Gagal menyimpan event: " + err.message, "error");
     }
   };
-  
+
   const handleSyncToGoogle = () => {
     if (!formData.title || !formData.date) return;
-    
+
+    if (selectedEvent?.extendedProps?.isEstimasi || formData.title.includes('[Estimasi]')) {
+      showAlert("Jadwal Masih Estimasi", "Hanya jadwal yang sudah pasti (Status Confirm/Deal/Buyer) yang dapat di-sync ke Google Calendar.", "warning");
+      return;
+    }
+
     const title = encodeURIComponent(formData.title);
-    const details = encodeURIComponent(`PIC: ${formData.pic}\n\nDescription: ${formData.desc}`);
+    const details = encodeURIComponent(`AO: ${formData.pic}\n\nDescription: ${formData.desc}`);
     const location = encodeURIComponent(formData.schoolName || '');
-    
+
     // Helper to format date for Google (YYYYMMDDTHHmmSS)
     const formatGoogleDate = (d, t) => {
       const base = d.replace(/-/g, '');
       if (t) return `${base}T${t.replace(/:/g, '')}00`;
       return base;
     };
-    
+
     const startObj = formatGoogleDate(formData.date, formData.startTime);
     let endObj = formatGoogleDate(formData.date, formData.endTime);
-    
+
     if (startObj === endObj || !formData.endTime) {
-       // If no end time, make it 1 hour after or same day
-       if (formData.startTime) {
-          const hour = parseInt(formData.startTime.split(':')[0]) + 1;
-          const min = formData.startTime.split(':')[1];
-          endObj = formatGoogleDate(formData.date, `${hour.toString().padStart(2, '0')}:${min}`);
-       } else {
-          endObj = startObj;
-       }
+      // If no end time, make it 1 hour after or same day
+      if (formData.startTime) {
+        const hour = parseInt(formData.startTime.split(':')[0]) + 1;
+        const min = formData.startTime.split(':')[1];
+        endObj = formatGoogleDate(formData.date, `${hour.toString().padStart(2, '0')}:${min}`);
+      } else {
+        endObj = startObj;
+      }
     }
-    
+
     const url = `https://www.google.com/calendar/render?action=TEMPLATE&text=${title}&details=${details}&location=${location}&dates=${startObj}/${endObj}`;
     window.open(url, '_blank');
   };
@@ -281,7 +286,7 @@ const Calendar = () => {
     }
 
     if (events.length === 0) return;
-    
+
     setIsSyncing(true);
     let successCount = 0;
     let failCount = 0;
@@ -293,7 +298,7 @@ const Calendar = () => {
       try {
         const startStr = ev.start;
         const endStr = ev.end || ev.start;
-        
+
         const googleEvent = {
           summary: ev.title,
           location: ev.extendedProps?.schoolName || '',
@@ -335,7 +340,7 @@ const Calendar = () => {
     }
 
     setIsSyncing(false);
-    if(successCount > 0) {
+    if (successCount > 0) {
       showAlert("Sinkronisasi Selesai", `${successCount} event berhasil dipindahkan to Google Calendar.${failCount > 0 ? ` (${failCount} gagal)` : ''}`, "success");
     } else if (failCount > 0) {
       showAlert("Gagal Sinkronisasi", "Pastikan koneksi internet stabil dan token Google masih berlaku.", "error");
@@ -346,7 +351,7 @@ const Calendar = () => {
 
   const handleDelete = () => {
     showConfirm(
-      "Hapus Event?", 
+      "Hapus Event?",
       "Apakah Anda yakin ingin menghapus jadwal ini secara permanen?",
       async () => {
         try {
@@ -386,13 +391,13 @@ const Calendar = () => {
           {!isMobile && <p className="text-secondary text-sm">Jadwal kegiatan dan penugasan personil.</p>}
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
-          <button 
-            className="btn btn-outline" 
-            style={{ borderRadius: '12px', borderColor: '#4285F4', color: '#4285F4', backgroundColor: 'white', padding: isMobile ? '8px 12px' : '10px 18px' }} 
+          <button
+            className="btn btn-outline"
+            style={{ borderRadius: '12px', borderColor: '#4285F4', color: '#4285F4', backgroundColor: 'white', padding: isMobile ? '8px 12px' : '10px 18px' }}
             onClick={handleSyncAllToGoogle}
             disabled={isSyncing}
           >
-            <RefreshCw size={18} className={isSyncing ? 'animate-spin' : ''} /> 
+            <RefreshCw size={18} className={isSyncing ? 'animate-spin' : ''} />
             {!isMobile && (isSyncing ? 'Syncing...' : 'Sync All')}
           </button>
           <button className="btn btn-primary" style={{ borderRadius: '12px', padding: isMobile ? '8px 12px' : '10px 18px' }} onClick={() => openAddEventDrawer(new Date().toISOString().split('T')[0])}>
@@ -454,7 +459,7 @@ const Calendar = () => {
             const month = String(arg.date.getMonth() + 1).padStart(2, '0');
             const day = String(arg.date.getDate()).padStart(2, '0');
             const cellDateStr = `${year}-${month}-${day}`;
-            
+
             if (cellDateStr === selectedDate) {
               return ['selected-day'];
             }
@@ -463,9 +468,9 @@ const Calendar = () => {
           eventContent={(eventInfo) => {
             const isEstimasi = eventInfo.event.extendedProps.isEstimasi;
             return (
-              <div style={{ 
-                overflow: 'hidden', 
-                textOverflow: 'ellipsis', 
+              <div style={{
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap',
                 display: 'flex',
                 flexDirection: 'column',
@@ -473,10 +478,10 @@ const Calendar = () => {
                 padding: '2px 0'
               }}>
                 {isEstimasi && (
-                  <div style={{ 
-                    fontSize: '9px', 
-                    fontWeight: 800, 
-                    textTransform: 'uppercase', 
+                  <div style={{
+                    fontSize: '9px',
+                    fontWeight: 800,
+                    textTransform: 'uppercase',
                     opacity: 0.8,
                     marginBottom: '1px'
                   }}>
@@ -491,9 +496,9 @@ const Calendar = () => {
 
         {/* Integrated Date Details Section */}
         {selectedDate && (
-          <div style={{ 
-            marginTop: '24px', 
-            paddingTop: '24px', 
+          <div style={{
+            marginTop: '24px',
+            paddingTop: '24px',
             borderTop: '2px solid var(--border)',
             animation: 'slideDown 0.3s ease'
           }}>
@@ -515,27 +520,29 @@ const Calendar = () => {
                 </div>
               ) : (
                 dateEvents.map((ev, i) => (
-                  <div 
-                    key={i} 
+                  <div
+                    key={i}
                     onClick={() => {
-                      handleEventClick({ event: { 
-                        title: ev.title, 
-                        start: ev.start ? new Date(ev.start) : new Date(ev.date),
-                        end: ev.end ? new Date(ev.end) : null,
-                        extendedProps: { ...ev },
-                        id: ev.id
-                      }});
+                      handleEventClick({
+                        event: {
+                          title: ev.title,
+                          start: ev.start ? new Date(ev.start) : new Date(ev.date),
+                          end: ev.end ? new Date(ev.end) : null,
+                          extendedProps: { ...ev },
+                          id: ev.id
+                        }
+                      });
                     }}
-                    style={{ 
-                      padding: '16px', borderRadius: '12px', backgroundColor: 'white', border: '1px solid var(--border)', 
+                    style={{
+                      padding: '16px', borderRadius: '12px', backgroundColor: 'white', border: '1px solid var(--border)',
                       borderLeft: `4px solid ${ev.type === 'task' ? '#FFBA08' : 'var(--primary)'}`,
                       cursor: 'pointer', transition: 'all 0.2s'
                     }}
                     className="hover:shadow-md"
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                       <span style={{ fontSize: '13px', fontWeight: 700, color: ev.type === 'task' ? '#FFBA08' : 'var(--primary)', textTransform: 'uppercase' }}>{ev.type || 'Event'}</span>
-                       <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{ev.startTime || '00:00'} - {ev.endTime || 'Selesai'}</span>
+                      <span style={{ fontSize: '13px', fontWeight: 700, color: ev.type === 'task' ? '#FFBA08' : 'var(--primary)', textTransform: 'uppercase' }}>{ev.type || 'Event'}</span>
+                      <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{ev.startTime || '00:00'} - {ev.endTime || 'Selesai'}</span>
                     </div>
                     <p style={{ margin: 0, fontWeight: 700, fontSize: '16px', color: 'var(--text-primary)' }}>{ev.title}</p>
                     <p style={{ margin: '4px 0 0', fontSize: '14px', color: 'var(--text-secondary)' }}>
@@ -545,7 +552,7 @@ const Calendar = () => {
                       <div style={{ width: '24px', height: '24px', borderRadius: '50%', backgroundColor: 'var(--primary-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', color: 'var(--primary)', fontWeight: 700 }}>
                         {ev.pic?.charAt(0) || 'U'}
                       </div>
-                      <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>PIC: {ev.pic || 'System'}</span>
+                      <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>AO: {ev.pic || 'System'}</span>
                     </div>
                   </div>
                 ))
@@ -558,7 +565,7 @@ const Calendar = () => {
       {/* Drawer Form for Add / Edit Event */}
       {isDrawerOpen && (
         <>
-          <div 
+          <div
             onClick={() => setIsDrawerOpen(false)}
             style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.3)', zIndex: 100 }}
           />
@@ -580,35 +587,35 @@ const Calendar = () => {
                 <X size={24} />
               </button>
             </div>
-            
+
             <div style={{ flex: 1, padding: '24px', overflowY: 'auto' }}>
               <form id="event-form" onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 <div>
                   <label className="text-sm font-medium mb-2" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <CalendarIcon size={16} color="var(--primary)" /> Judul Event / Task <span style={{color: 'red'}}>*</span>
+                    <CalendarIcon size={16} color="var(--primary)" /> Judul Event / Task <span style={{ color: 'red' }}>*</span>
                   </label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     required
                     value={formData.title}
-                    onChange={(e) => setFormData({...formData, title: e.target.value})}
-                    placeholder="e.g. Rapat Panitia Tryout" 
-                    style={{ backgroundColor: 'var(--bg)', padding: '12px 16px', border: '1px solid var(--border)', width: '100%', borderRadius: '12px' }} 
+                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    placeholder="e.g. Rapat Panitia Tryout"
+                    style={{ backgroundColor: 'var(--bg)', padding: '12px 16px', border: '1px solid var(--border)', width: '100%', borderRadius: '12px' }}
                   />
                 </div>
 
                 <div style={{ position: 'relative' }} ref={autocompleteRef}>
                   <label className="text-sm font-medium mb-2 block">Sekolah Terkait (Opsional)</label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     value={formData.schoolName}
                     onChange={(e) => {
-                      setFormData({...formData, schoolName: e.target.value, schoolId: ''});
+                      setFormData({ ...formData, schoolName: e.target.value, schoolId: '' });
                       setShowSchoolDropdown(true);
                     }}
                     onFocus={() => setShowSchoolDropdown(true)}
-                    placeholder="Cari sekolah terdaftar..." 
-                    style={{ backgroundColor: 'var(--bg)', padding: '12px 16px', border: '1px solid var(--border)', width: '100%', borderRadius: '12px' }} 
+                    placeholder="Cari sekolah terdaftar..."
+                    style={{ backgroundColor: 'var(--bg)', padding: '12px 16px', border: '1px solid var(--border)', width: '100%', borderRadius: '12px' }}
                   />
                   {showSchoolDropdown && formData.schoolName.length > 0 && (
                     <div style={{
@@ -619,7 +626,7 @@ const Calendar = () => {
                       {filteredSchoolSuggestions.length > 0 ? (
                         <>
                           {filteredSchoolSuggestions.map(s => (
-                            <div 
+                            <div
                               key={s.id}
                               onClick={() => {
                                 setFormData({ ...formData, schoolName: s.name, schoolId: s.id });
@@ -647,12 +654,12 @@ const Calendar = () => {
                 <div style={{ display: 'flex', gap: '16px' }}>
                   <div style={{ flex: 1 }}>
                     <label className="text-sm font-medium mb-2 block">Tanggal Eksekusi</label>
-                    <input 
-                      type="date" 
+                    <input
+                      type="date"
                       value={formData.date}
-                      onChange={(e) => setFormData({...formData, date: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, date: e.target.value })}
                       required
-                      style={{ backgroundColor: 'var(--bg)', padding: '12px 16px', border: '1px solid var(--border)', width: '100%', borderRadius: '12px' }} 
+                      style={{ backgroundColor: 'var(--bg)', padding: '12px 16px', border: '1px solid var(--border)', width: '100%', borderRadius: '12px' }}
                     />
                   </div>
                 </div>
@@ -662,22 +669,22 @@ const Calendar = () => {
                     <label className="text-sm font-medium mb-2" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <Clock size={16} /> Jam Mulai
                     </label>
-                    <input 
-                      type="time" 
+                    <input
+                      type="time"
                       value={formData.startTime}
-                      onChange={(e) => setFormData({...formData, startTime: e.target.value})}
-                      style={{ backgroundColor: 'var(--bg)', padding: '12px 16px', border: '1px solid var(--border)', width: '100%', borderRadius: '12px' }} 
+                      onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
+                      style={{ backgroundColor: 'var(--bg)', padding: '12px 16px', border: '1px solid var(--border)', width: '100%', borderRadius: '12px' }}
                     />
                   </div>
                   <div style={{ flex: 1 }}>
                     <label className="text-sm font-medium mb-2" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <Clock size={16} /> Jam Selesai
                     </label>
-                    <input 
-                      type="time" 
+                    <input
+                      type="time"
                       value={formData.endTime}
-                      onChange={(e) => setFormData({...formData, endTime: e.target.value})}
-                      style={{ backgroundColor: 'var(--bg)', padding: '12px 16px', border: '1px solid var(--border)', width: '100%', borderRadius: '12px' }} 
+                      onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
+                      style={{ backgroundColor: 'var(--bg)', padding: '12px 16px', border: '1px solid var(--border)', width: '100%', borderRadius: '12px' }}
                     />
                   </div>
                 </div>
@@ -686,10 +693,10 @@ const Calendar = () => {
                   <label className="text-sm font-medium mb-2" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <AlignLeft size={16} /> Tipe Kategori
                   </label>
-                  <select 
+                  <select
                     value={formData.type}
-                    onChange={(e) => setFormData({...formData, type: e.target.value})}
-                     style={{ backgroundColor: 'var(--bg)', padding: '12px 16px', border: '1px solid var(--border)', width: '100%', borderRadius: '12px' }}
+                    onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                    style={{ backgroundColor: 'var(--bg)', padding: '12px 16px', border: '1px solid var(--border)', width: '100%', borderRadius: '12px' }}
                   >
                     <option value="event">Event Khusus Client (Biru)</option>
                     <option value="reminder">Follow Up Reminder (Kuning)</option>
@@ -700,58 +707,58 @@ const Calendar = () => {
 
                 <div>
                   <label className="text-sm font-medium mb-2" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Users size={16} /> PIC / Tim Terkait
+                    <Users size={16} /> AO (Account Officer)
                   </label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     value={formData.pic}
                     readOnly
                     disabled
-                    style={{ backgroundColor: 'var(--border)', padding: '12px 16px', border: 'none', color: 'var(--text-secondary)', width: '100%', borderRadius: '12px', cursor: 'not-allowed' }} 
+                    style={{ backgroundColor: 'var(--border)', padding: '12px 16px', border: 'none', color: 'var(--text-secondary)', width: '100%', borderRadius: '12px', cursor: 'not-allowed' }}
                   />
-                  <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>PIC otomatis diambil dari akun yang sedang login.</p>
+                  <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>AO otomatis diambil dari akun yang sedang login.</p>
                 </div>
 
                 <div>
                   <label className="text-sm font-medium mb-2 block">Deskripsi Detail</label>
-                  <textarea 
-                    rows={4} 
+                  <textarea
+                    rows={4}
                     value={formData.desc}
-                    onChange={(e) => setFormData({...formData, desc: e.target.value})}
-                    placeholder="Tulis instruksi task / catatan di sini..." 
+                    onChange={(e) => setFormData({ ...formData, desc: e.target.value })}
+                    placeholder="Tulis instruksi task / catatan di sini..."
                     style={{ backgroundColor: 'var(--bg)', resize: 'none', padding: '12px 16px', border: '1px solid var(--border)', width: '100%' }}
                   ></textarea>
                 </div>
               </form>
             </div>
-            
+
             <div style={{ padding: '24px', borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '12px', backgroundColor: 'var(--surface)' }}>
-              
+
               {selectedEvent && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {formData.type === 'event' && (
-                    <button 
-                      type="button" 
-                      onClick={() => navigate('/reports/event', { 
-                        state: { 
-                          eventData: { 
-                            schoolName: formData.schoolName, 
-                            program: formData.title, 
+                    <button
+                      type="button"
+                      onClick={() => navigate('/reports/event', {
+                        state: {
+                          eventData: {
+                            schoolName: formData.schoolName,
+                            program: formData.title,
                             date: formData.date,
-                            pic: formData.pic 
-                          } 
-                        } 
+                            pic: formData.pic
+                          }
+                        }
                       })}
-                      className="btn btn-primary" 
+                      className="btn btn-primary"
                       style={{ width: '100%', justifyContent: 'center', backgroundColor: '#2ED47A', borderColor: '#2ED47A' }}
                     >
                       <ClipboardCheck size={16} /> Buat Laporan After-Event
                     </button>
                   )}
-                  <button 
-                    type="button" 
-                    onClick={handleSyncToGoogle} 
-                    className="btn btn-outline" 
+                  <button
+                    type="button"
+                    onClick={handleSyncToGoogle}
+                    className="btn btn-outline"
                     style={{ width: '100%', justifyContent: 'center', borderColor: '#4285F4', color: '#4285F4', backgroundColor: '#F0F7FF' }}
                   >
                     <Share2 size={16} /> Sync to Google Calendar

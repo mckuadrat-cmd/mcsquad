@@ -339,3 +339,66 @@ textarea {
     opacity: 1;
   }
 }
+
+/* Document Selection & Table Interactive Hover Effects */
+.doc-dropdown-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 12px 20px;
+  text-align: left;
+  font-size: 14px;
+  color: var(--text-primary);
+  cursor: pointer;
+  border: none;
+  background-color: transparent;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  border-left: 4px solid transparent;
+}
+
+.doc-dropdown-item:hover {
+  background-color: var(--primary-soft);
+  color: var(--primary);
+  border-left-color: var(--primary);
+  padding-left: 24px;
+}
+
+.doc-dropdown-item .doc-type-badge {
+  transition: all 0.18s ease;
+}
+
+.doc-dropdown-item:hover .doc-type-badge {
+  background-color: var(--primary) !important;
+  color: #FFFFFF !important;
+  border-color: var(--primary) !important;
+}
+
+.doc-dropdown-item:active {
+  transform: scale(0.98);
+  background-color: #EBDADA;
+}
+
+.doc-table-row {
+  transition: background-color 0.2s ease;
+}
+
+.doc-table-row:hover {
+  background-color: #F8FAFC !important;
+}
+
+/* Global Smooth Spinner Animation */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite !important;
+  display: inline-block;
+  transform-origin: center center;
+}

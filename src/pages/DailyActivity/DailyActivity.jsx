@@ -68,17 +68,22 @@ const DailyActivity = () => {
 
     const fetchActivities = async () => {
       try {
-        const { data } = await invokeApi(`/daily_activities?userId=eq.${selectedUserId}&date=in.(${selectedDate},${tmrStr})&order=createdAt.asc`);
+        const queryEndpoint = selectedUserId === 'ALL'
+          ? `/daily_activities?date=in.(${selectedDate},${tmrStr})&order=createdAt.asc`
+          : `/daily_activities?userId=eq.${selectedUserId}&date=in.(${selectedDate},${tmrStr})&order=createdAt.asc`;
+
+        const { data } = await invokeApi(queryEndpoint);
         setActivities(parseDates(data || []));
         setLoading(false);
 
         // Realtime Subscription
+        const filterStr = selectedUserId === 'ALL' ? undefined : `userId=eq.${selectedUserId}`;
         dailyChannel = supabase.channel(`public:daily_activities:${selectedUserId}`)
           .on('postgres_changes', { 
             event: '*', 
             schema: 'public', 
             table: 'daily_activities', 
-            filter: `userId=eq.${selectedUserId}` 
+            filter: filterStr
           }, (payload) => {
             const parsedNew = parseDates(payload.new);
             if (payload.eventType === 'INSERT') {
@@ -235,6 +240,7 @@ const DailyActivity = () => {
                 style={{ appearance: 'none', backgroundColor: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '12px', padding: '0 40px 0 16px', fontWeight: 600, fontSize: '14px', cursor: 'pointer', height: '42px', width: isMobile ? '100%' : '220px' }}
               >
                 <option value={currentUser.uid}>Aktivitas Saya</option>
+                <option value="ALL">Semua Tim (Semua Aktivitas)</option>
                 {team.filter(t => t.id !== currentUser.uid).map(member => (
                   <option key={member.id} value={member.id}>{member.name} ({member.division || 'Staff'})</option>
                 ))}

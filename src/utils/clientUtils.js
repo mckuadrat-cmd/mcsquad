@@ -176,7 +176,7 @@ export const cascadeSchoolNameUpdate = async (oldSchoolId, newSchoolId, oldName,
       { name: 'leads', idField: 'schoolId', nameField: 'schoolName' },
       { name: 'projects', idField: 'schoolId', nameField: 'schoolName' },
       { name: 'daily_activities', idField: 'schoolId', nameField: 'schoolName' },
-      { name: 'generated_documents', idField: 'schoolId', nameField: 'client' }, 
+      { name: 'generated_documents', idField: 'school_id', nameField: 'client_name' }, 
       { name: 'event_reports', idField: 'schoolId', nameField: 'schoolName' },
     ];
 

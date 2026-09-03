@@ -14,6 +14,7 @@ const ClientDashboard = () => {
   const { clients, leads } = useAppData();
   const [documents, setDocuments] = useState([]);
   const [reports, setReports] = useState([]);
+  const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
@@ -34,37 +35,45 @@ const ClientDashboard = () => {
     return allLeads.filter(l => (l.schoolName || l.school)?.toLowerCase() === schoolName?.toLowerCase());
   }, [leads, schoolName]);
 
-  // Sync Documents and Reports for this school
+  // Sync Documents, Reports, and Daily Activities for this school
   useEffect(() => {
     if (!schoolName) return;
 
-    let docsChannel;
-    let reportsChannel;
+    let docsChannel, reportsChannel, activitiesChannel;
 
     const fetchData = async () => {
       try {
         // Query generated_documents
-        const { data: docsData, error: docsError } = await supabase
+        const { data: docsData } = await supabase
           .from('generated_documents')
           .select('*')
-          .eq('client', schoolName);
-        if (docsError) throw docsError;
+          .or(`client_name.eq.${schoolName},client.eq.${schoolName}`);
 
         const parsedDocs = parseDates(docsData || []);
         parsedDocs.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
         setDocuments(parsedDocs);
-        setLoading(false);
 
         // Query event_reports
-        const { data: repsData, error: repsError } = await supabase
+        const { data: repsData } = await supabase
           .from('event_reports')
           .select('*')
           .eq('schoolName', schoolName);
-        if (repsError) throw repsError;
 
         const parsedReps = parseDates(repsData || []);
         parsedReps.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
         setReports(parsedReps);
+
+        // Query daily_activities
+        const { data: actsData } = await supabase
+          .from('daily_activities')
+          .select('*')
+          .or(`schoolName.eq.${schoolName},schoolId.eq.${schoolName}`);
+
+        const parsedActs = parseDates(actsData || []);
+        parsedActs.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+        setActivities(parsedActs);
+
+        setLoading(false);
 
         // Subscribe to generated_documents
         docsChannel = supabase.channel(`public:generated_documents:${schoolName}`)
@@ -197,36 +206,45 @@ const ClientDashboard = () => {
             </h3>
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              {documents.length === 0 && reports.length === 0 ? (
+              {documents.length === 0 && reports.length === 0 && activities.length === 0 ? (
                 <p className="text-center text-secondary py-10">Belum ada riwayat aktivitas untuk sekolah ini.</p>
               ) : (
-                [...documents.map(d => ({ ...d, timelineType: 'doc' })), ...reports.map(r => ({ ...r, timelineType: 'report' }))]
-                  .sort((a, b) => new Date(b.date || b.createdAt?.toDate()) - new Date(a.date || a.createdAt?.toDate()))
+                [
+                  ...documents.map(d => ({ ...d, timelineType: 'doc' })), 
+                  ...reports.map(r => ({ ...r, timelineType: 'report' })),
+                  ...activities.map(a => ({ ...a, timelineType: 'activity' }))
+                ]
+                  .sort((a, b) => new Date(b.date || b.createdAt?.toDate() || b.createdAt) - new Date(a.date || a.createdAt?.toDate() || a.createdAt))
                   .map((item, i) => (
                     <div key={i} style={{ display: 'flex', gap: '16px' }}>
                       <div style={{ 
                         flexShrink: 0, width: '40px', height: '40px', borderRadius: '10px', 
-                        backgroundColor: item.timelineType === 'doc' ? 'var(--primary-soft)' : '#E5F6EB',
+                        backgroundColor: item.timelineType === 'doc' ? 'var(--primary-soft)' : item.timelineType === 'report' ? '#E5F6EB' : '#FFF4E5',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        color: item.timelineType === 'doc' ? 'var(--primary)' : '#2ED47A'
+                        color: item.timelineType === 'doc' ? 'var(--primary)' : item.timelineType === 'report' ? '#2ED47A' : '#FFB020'
                       }}>
-                        {item.timelineType === 'doc' ? <FileText size={18} /> : <CheckCircle2 size={18} />}
+                        {item.timelineType === 'doc' ? <FileText size={18} /> : item.timelineType === 'report' ? <CheckCircle2 size={18} /> : <Activity size={18} />}
                       </div>
                       <div style={{ flex: 1, borderBottom: '1px solid var(--border)', paddingBottom: '16px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'flex-start' : 'center' }}>
                           <p style={{ fontWeight: 700, margin: 0, fontSize: isMobile ? '14px' : '16px' }}>
-                            {item.timelineType === 'doc' ? `${item.type}: ${item.title}` : `Laporan: ${item.programName}`}
+                            {item.timelineType === 'doc' ? `${item.type}: ${item.title}` : item.timelineType === 'report' ? `Laporan: ${item.programName}` : `Aktivitas (${item.category || 'General'}): ${item.text || item.title}`}
                           </p>
                           <span style={{ fontSize: isMobile ? '12px' : '14px', color: 'var(--text-secondary)' }}>
-                            {new Date(item.date || item.createdAt?.toDate()).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+                            {new Date(item.date || item.createdAt?.toDate() || item.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
                           </span>
                         </div>
                         <p style={{ fontSize: '14px', color: 'var(--text-secondary)', margin: 0 }}>
-                          {item.timelineType === 'doc' ? `Generated by ${item.author || 'System'}` : `Materi: ${item.materials?.join(', ') || '-'}`}
+                          {item.timelineType === 'doc' ? `Generated by ${item.author || 'System'}` : item.timelineType === 'report' ? `Materi: ${item.materials?.join(', ') || '-'}` : `Oleh: ${item.userName || item.author || 'Tim'}`}
                         </p>
                         {item.timelineType === 'report' && (
                           <div style={{ marginTop: '10px', padding: '12px', backgroundColor: '#F8F9FB', borderRadius: '8px', fontSize: '14px' }}>
                             <strong>Catatan Lapangan:</strong> {item.facts || '-'}
+                          </div>
+                        )}
+                        {item.timelineType === 'activity' && item.extraInfo && (
+                          <div style={{ marginTop: '10px', padding: '12px', backgroundColor: '#F8F9FB', borderRadius: '8px', fontSize: '14px' }}>
+                            <strong>Info:</strong> {item.extraInfo}
                           </div>
                         )}
                       </div>

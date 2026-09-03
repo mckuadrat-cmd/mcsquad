@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
+import { handleDocumentApi } from "./document/index.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -83,7 +84,11 @@ serve(async (req) => {
     const { data: debugSteps } = await supabase.from('wa_drip_steps').select('*')
     console.log("DEBUG: wa_drip_steps content:", JSON.stringify(debugSteps))
 
-    // 3. Parse path URL & parameter query
+    // 3. Document Engine V2 Router Interceptor
+    const docResponse = await handleDocumentApi(req, supabase, userRole, user);
+    if (docResponse) return docResponse;
+
+    // 4. Parse path URL & parameter query
     const url = new URL(req.url)
     // Menghilangkan prefix path default Edge Function
     const pathname = url.pathname.replace(/^\/functions\/v1\/server/, '').replace(/^\/server/, '').replace(/^\//, '')

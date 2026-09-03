@@ -296,6 +296,7 @@ export const AppDataProvider = ({ children }) => {
   const value = {
     clients, setClients,
     leads, setLeads,
+    flatLeads, setFlatLeads,
     projects, setProjects,
     events, setEvents,
     calendarEvents, setCalendarEvents,

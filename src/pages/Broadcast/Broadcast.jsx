@@ -17,6 +17,13 @@ const Broadcast = () => {
   const { userRole, currentUser } = useAuth();
   const isAdminOrOwner = userRole === 'owner' || userRole === 'admin';
   const { showToast, showAlert, showConfirm } = useNotification();
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const {
     waSettings, templates, dripSequences, dripSteps = [],
@@ -223,25 +230,25 @@ const Broadcast = () => {
   };
 
   return (
-    <div style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto' }}>
+    <div style={{ position: 'relative', height: '100%', paddingBottom: '20px' }}>
       {/* Header Banner */}
       <div style={{
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        marginBottom: '24px', flexWrap: 'wrap', gap: '16px'
+        display: 'flex', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center',
+        marginBottom: '24px', flexDirection: isMobile ? 'column' : 'row', gap: '16px'
       }}>
         <div>
-          <h1 style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <h1 style={{ fontSize: isMobile ? '24px' : '30px', fontWeight: 700, margin: '0 0 4px', display: 'flex', alignItems: 'center', gap: '10px' }}>
             <Sparkles size={28} color="var(--primary)" />
             Proses Sapa Client Cold
           </h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginTop: '4px' }}>
-            Otomatisasi sapaan dan follow-up bertahap via Gateway WhatsApp Pihak Ketiga.
+          <p className="text-secondary text-sm">
+            Otomatisasi sapaan dan follow-up bertahap via Gateway WhatsApp Pihak Ketiga
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', width: isMobile ? '100%' : 'auto', justifyContent: isMobile ? 'space-between' : 'flex-end', flexWrap: 'wrap' }}>
           <span style={{
-            fontSize: '14px', fontWeight: 600, padding: '6px 14px', borderRadius: '20px',
+            fontSize: '13px', fontWeight: 600, padding: '6px 14px', borderRadius: '20px',
             backgroundColor: '#E8F5E9', color: '#2E7D32',
             display: 'inline-flex', alignItems: 'center', gap: '6px'
           }}>
@@ -251,9 +258,9 @@ const Broadcast = () => {
           <button
             onClick={refreshBroadcastData}
             title="Refresh Data"
+            className="btn btn-outline"
             style={{
-              padding: '10px 14px', borderRadius: '10px', border: '1px solid var(--border)',
-              backgroundColor: 'var(--surface)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px'
+              borderRadius: '12px', padding: '10px 16px', borderColor: 'var(--border)', backgroundColor: 'var(--surface)'
             }}
           >
             <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
@@ -612,7 +619,15 @@ const Broadcast = () => {
                       <Edit3 size={14} /> Edit
                     </button>
                     <button
-                      onClick={() => deleteTemplate(tpl.id)}
+                      onClick={() => {
+                        showConfirm(
+                          "Konfirmasi Hapus Template",
+                          `Apakah Anda yakin ingin menghapus template "${tpl.name}" secara permanen dari database?`,
+                          async () => {
+                            await deleteTemplate(tpl.id);
+                          }
+                        );
+                      }}
                       style={{ padding: '6px 12px', border: '1px solid #FFE5E5', borderRadius: '6px', backgroundColor: '#FFE5E5', color: '#FF5252', cursor: 'pointer' }}
                     >
                       <Trash2 size={14} /> Hapus
@@ -627,7 +642,7 @@ const Broadcast = () => {
 
       {/* --- TAB 3: GATEWAY SETTINGS (ADMIN/OWNER ONLY) --- */}
       {activeTab === 'settings' && isAdminOrOwner && (
-        <div style={{ backgroundColor: 'var(--surface)', borderRadius: '16px', border: '1px solid var(--border)', padding: '24px', maxWidth: '800px' }}>
+        <div style={{ backgroundColor: 'var(--surface)', borderRadius: '16px', border: '1px solid var(--border)', padding: '24px' }}>
           <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '6px' }}>Pengaturan WhatsApp Gateway Pihak Ketiga</h3>
           <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '20px' }}>
             Hubungkan CRM dengan gateway REST API penyedia pengiriman WhatsApp otomatis (seperti Fonnte, Wablas, Whacenter).

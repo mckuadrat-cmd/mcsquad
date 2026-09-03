@@ -67,8 +67,14 @@ export const generateWaMeLink = (phone, message) => {
  * @param {string} phone 
  * @param {string} message 
  */
-export const openManualWaChat = (phone, message) => {
-  const link = generateWaMeLink(phone, message);
+export const openManualWaChat = (phone, message, client = null) => {
+  let text = message;
+  if (!text || text.trim() === '') {
+    const salutation = client?.sapaan || client?.salutation || 'Bapak/Ibu';
+    const nickname = client?.panggilan || client?.nickname || (client?.nama || client?.name || '').split(' ')[0] || 'Bapak/Ibu';
+    text = `Assalamualaikum, ${nickname}, bagaimana kabar ${salutation} hari ini ?`;
+  }
+  const link = generateWaMeLink(phone, text);
   window.open(link, '_blank');
 };
 

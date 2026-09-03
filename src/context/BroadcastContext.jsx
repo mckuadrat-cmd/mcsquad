@@ -201,13 +201,19 @@ export const BroadcastProvider = ({ children }) => {
 
   const deleteTemplate = async (id) => {
     try {
-      await invokeApi(`/wa_templates?id=eq.${id}`, { method: 'DELETE' });
-      showToast('Template berhasil dihapus', 'info');
+      // Direct hard delete from database table wa_templates
+      const { error } = await supabase.from('wa_templates').delete().eq('id', id);
+      if (error) {
+        // Fallback via API helper
+        await invokeApi(`/wa_templates?id=eq.${id}`, { method: 'DELETE' });
+      }
+      setTemplates(prev => prev.filter(t => t.id !== id));
+      showToast('Template berhasil dihapus permanen dari database!', 'info');
       refreshBroadcastData();
       return true;
     } catch (err) {
       console.error('Delete template error:', err);
-      showAlert('Gagal', 'Tidak dapat menghapus template.');
+      showAlert('Gagal', 'Tidak dapat menghapus template dari database: ' + (err.message || 'Error'));
       return false;
     }
   };

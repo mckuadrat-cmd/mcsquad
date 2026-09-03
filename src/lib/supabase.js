@@ -82,7 +82,7 @@ export const invokeApi = async (path, options = {}) => {
   const tableName = urlPath.replace('/', '');
 
   // 1. Direct PostgREST fast-path for standard database tables (Instant <50ms response, 0 cold starts)
-  const knownTables = ['clients', 'leads', 'projects', 'profiles', 'daily_activities', 'calendar_events', 'wa_settings', 'wa_templates', 'wa_drip_steps', 'wa_drip_sequences', 'wa_broadcasts', 'wa_broadcast_items', 'wa_client_drips', 'wa_inbound_logs', 'event_reports', 'generated_documents', 'messages', 'user_notifications', 'document_templates', 'settings'];
+  const knownTables = ['clients', 'leads', 'projects', 'profiles', 'daily_activities', 'calendar_events', 'wa_settings', 'wa_templates', 'wa_drip_steps', 'wa_drip_sequences', 'wa_broadcasts', 'wa_broadcast_items', 'wa_client_drips', 'wa_inbound_logs', 'event_reports', 'generated_documents', 'messages', 'user_notifications', 'document_templates', 'document_template_versions', 'document_sequences', 'settings'];
 
   if (knownTables.includes(tableName)) {
     try {
@@ -156,10 +156,15 @@ export const invokeApi = async (path, options = {}) => {
     headers['Authorization'] = `Bearer ${session.access_token}`;
   }
 
+  const isFormData = body instanceof FormData;
+  const requestBody = isFormData
+    ? body
+    : (typeof body === 'object' && body !== null ? JSON.stringify(body) : body);
+
   const { data, error } = await supabase.functions.invoke(`server${cleanedPath}`, {
     method,
     headers,
-    body: typeof body === 'object' ? JSON.stringify(body) : body
+    body: requestBody
   });
 
   if (error) {

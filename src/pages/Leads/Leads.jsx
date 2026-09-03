@@ -10,6 +10,7 @@ import { useNotification } from '../../context/NotificationContext';
 import { logActivity } from '../../utils/activityLogger';
 import { updateClientActivity, updateClientStatusAndProses } from '../../utils/clientUtils';
 import { sendNotificationByName } from '../../utils/notificationUtils';
+import DurationInput from '../../components/DurationInput';
 
 const Leads = () => {
   const navigate = useNavigate();
@@ -120,7 +121,9 @@ const Leads = () => {
     pic: userName,
     picId: currentUser?.uid,
     notes: '',
-    duration: '8', // Default to 1 day (8 hours)
+    duration: '2 Jam',
+    session: '1 Sesi',
+    method: 'Offline',
     newPicSalutation: '',
     newPicName: ''
   });
@@ -136,7 +139,9 @@ const Leads = () => {
       pic: lead.pic || userName,
       picId: lead.picId || '',
       notes: lead.notes || '',
-      duration: lead.duration || '8',
+      duration: lead.duration || '2 Jam',
+      session: lead.session || '1 Sesi',
+      method: lead.method || 'Offline',
       newPicSalutation: '',
       newPicName: ''
     });
@@ -294,6 +299,9 @@ const Leads = () => {
 
           // Get existing event props to merge
           const existingEvent = calendarEvents.find(e => e.id === lead.calendarEventId);
+          const rawTitle = (existingEvent?.title || `${lead.program} - ${lead.schoolName}`).replace(/^\[Estimasi\]\s*/i, '');
+          const finalTitle = isEstimasi ? `[Estimasi] ${rawTitle}` : rawTitle;
+
           const updatedProps = {
             ...(existingEvent?.extendedProps || {}),
             isEstimasi: isEstimasi
@@ -303,6 +311,7 @@ const Leads = () => {
             method: 'PUT',
             body: {
               id: lead.calendarEventId,
+              title: finalTitle,
               backgroundColor: bg,
               borderColor: border,
               textColor: text,
@@ -493,7 +502,9 @@ const Leads = () => {
       pic: newLead.pic,
       picId: currentUser?.uid,
       date: newLead.date || 'TBD',
-      duration: newLead.duration,
+      duration: newLead.duration || '2 Jam',
+      session: newLead.session || '1 Sesi',
+      method: newLead.method || 'Offline',
       notes: newLead.notes,
       status: 'suspect',
       calendarEventId: hasValidDate ? `EVL-${newId}` : null,
@@ -827,7 +838,7 @@ const Leads = () => {
             position: 'fixed',
             top: 0,
             right: 0,
-            width: isMobile ? '100%' : '450px',
+            width: isMobile ? '100%' : '650px',
             height: '100vh',
             backgroundColor: 'var(--surface)',
             boxShadow: '-8px 0 24px rgba(0,0,0,0.05)',
@@ -932,14 +943,14 @@ const Leads = () => {
                         onChange={(e) => setNewLead({ ...newLead, schoolPic: e.target.value })}
                         style={{ backgroundColor: 'var(--bg)', padding: '12px 16px', border: '1px solid var(--border)', width: '100%', borderRadius: '8px', cursor: 'pointer' }}
                       >
-                        <option value="">-- Pilih PIC Sekolah --</option>
+                        <option value="">-- PIC Sekolah --</option>
                         {schoolPics.map((pic, idx) => {
                           const displayName = pic.panggilan || pic.nickname || pic.nama || pic.name || 'Unknown';
                           const actualName = pic.nama || pic.name || 'Unknown';
-                          const actualSalutation = pic.sapaan || pic.salutation || '';
+                          const actualPhone = pic.whatsapp || pic.phone || 'Tanpa No WA';
                           return (
                             <option key={idx} value={actualName}>
-                              {actualSalutation} {displayName}
+                              {displayName} - {actualPhone}
                             </option>
                           );
                         })}
@@ -1005,7 +1016,7 @@ const Leads = () => {
                     style={{ backgroundColor: 'var(--bg)', padding: '12px 16px', border: '1px solid var(--border)', width: '100%', borderRadius: '8px' }}
                   />
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr', gap: '16px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr 1fr', gap: '16px' }}>
                   <div style={{ flex: 1 }}>
                     <label className="text-sm font-medium mb-2 block">Tanggal Event (Est.)</label>
                     <input
@@ -1016,29 +1027,51 @@ const Leads = () => {
                     />
                   </div>
                   <div style={{ flex: 1 }}>
-                    <label className="text-sm font-medium mb-2 block">Durasi</label>
-                    <select
-                      value={newLead.duration}
-                      onChange={(e) => setNewLead({ ...newLead, duration: e.target.value })}
-                      style={{ backgroundColor: 'var(--bg)', padding: '12px 16px', border: '1px solid var(--border)', width: '100%', borderRadius: '8px', fontSize: '15px', cursor: 'pointer' }}
-                    >
-                      <option value="1">1 Jam</option>
-                      <option value="2">2 Jam</option>
-                      <option value="4">Setengah Hari</option>
-                      <option value="8">Sehari (Full-day)</option>
-                      <option value="16">2 Hari</option>
-                      <option value="24">3 Hari</option>
-                    </select>
+                    <label className="text-sm font-medium mb-2 block">Sesi</label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <input
+                        type="number"
+                        min="1"
+                        placeholder="1"
+                        value={newLead.session ? String(newLead.session).replace(/[^0-9]/g, '') : ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setNewLead({ ...newLead, session: val ? `${val} Sesi` : '' });
+                        }}
+                        style={{ backgroundColor: 'var(--bg)', padding: '12px 16px', border: '1px solid var(--border)', width: '100%', borderRadius: '8px', fontSize: '15px' }}
+                      />
+                      <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>Sesi</span>
+                    </div>
                   </div>
                   <div style={{ flex: 1 }}>
-                    <label className="text-sm font-medium mb-2 block">AO (Account Officer)</label>
-                    <input
-                      type="text"
-                      disabled
-                      value={newLead.pic}
-                      style={{ backgroundColor: 'var(--border)', padding: '12px 16px', border: 'none', color: 'var(--text-secondary)', width: '100%', borderRadius: '8px', fontSize: '15px' }}
+                    <label className="text-sm font-medium mb-2 block">Durasi</label>
+                    <DurationInput
+                      value={newLead.duration}
+                      onChange={(val) => setNewLead({ ...newLead, duration: val })}
+                      style={{ backgroundColor: 'var(--bg)', padding: '12px 16px', border: '1px solid var(--border)', width: '100%', borderRadius: '8px', fontSize: '15px' }}
                     />
                   </div>
+                  <div style={{ flex: 1 }}>
+                    <label className="text-sm font-medium mb-2 block">Metode</label>
+                    <select
+                      value={newLead.method || 'Offline'}
+                      onChange={(e) => setNewLead({ ...newLead, method: e.target.value })}
+                      style={{ backgroundColor: 'var(--bg)', padding: '12px 16px', border: '1px solid var(--border)', width: '100%', borderRadius: '8px', fontSize: '15px', cursor: 'pointer' }}
+                    >
+                      <option value="Offline">Offline</option>
+                      <option value="Online">Online</option>
+                      <option value="Hybrid">Hybrid</option>
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className="text-sm font-medium mb-2 block">AO</label>
+                  <input
+                    type="text"
+                    disabled
+                    value={newLead.pic}
+                    style={{ backgroundColor: 'var(--border)', padding: '12px 16px', border: 'none', color: 'var(--text-secondary)', width: '100%', borderRadius: '8px', fontSize: '15px' }}
+                  />
                 </div>
                 <div>
                   <label className="text-sm font-medium mb-2 block">Catatan Tambahan [opsional]</label>
